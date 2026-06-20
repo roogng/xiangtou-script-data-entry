@@ -148,32 +148,42 @@ CREATE TABLE task_status (
 | 字段 | 取值 |
 |------|------|
 | `file_id` | 自增，不填 |
-| `folder_type` | NOT NULL，需一个固定取值（待用户确认，见 §14） |
+| `folder_type` | 1 |
 | `file_name` | 原图文件名 |
 | `file_size` | 压缩后字节数 |
 | `file_key` | `public/common/{UUID}.jpg`（唯一键） |
 | `file_type` | 图片 MIME/扩展名，如 `jpg` |
 | `creator_id` | 43 |
-| `creator_user_type` | 待确认（见 §14） |
-| `creator_name` | 待确认（见 §14） |
+| `creator_user_type` | 1 |
+| `creator_name` | 乡投会员5446 |
 | `create_time` / `update_time` | 库默认 CURRENT_TIMESTAMP |
 
 ### 5.4 业务表（DDL 已提供，见 `sql/`）
 
 类别 → 表映射（详细字段映射在实现计划阶段逐表梳理）：
 
-| 类别 | 主表 | 子表 |
-|------|------|------|
-| 基本信息 | `vill_village`（待确认，见下） | — |
-| 村贤 | `vill_village_sages` | — |
-| 民宿 | `vill_homestay` | `vill_homestay_room` |
-| 土特产 | `vill_goods` | — |
-| 动态 | `vill_dynamics` | — |
-| 活动 | `vill_village_activity` | `vill_village_activity_day`、`vill_village_activity_trip` |
-| 旅游路线 | `vill_village_travel` | — |
-| 农庄 | `vill_restaurant` | `vill_restaurant_dish` |
-| 景区 | `vill_attraction` | — |
-| — | `vill_village_job` | 用途待确认（可能与基本信息/村书记相关） |
+| 类别 | 主表 | 子表 | 写入方式 |
+|------|------|------|----------|
+| 基本信息 | `vill_village`（即源村庄表） | — | UPDATE 源行 |
+| 村贤 | `vill_village_sages` | — | INSERT |
+| 民宿 | `vill_homestay` | `vill_homestay_room` | INSERT |
+| 土特产 | `vill_goods` | — | INSERT |
+| 动态 | `vill_dynamics` | — | INSERT |
+| 活动 | `vill_village_activity` | `vill_village_activity_day`、`vill_village_activity_trip` | INSERT |
+| 旅游路线 | `vill_village_travel` | — | INSERT |
+| 农庄 | `vill_restaurant` | `vill_restaurant_dish` | INSERT |
+| 景区 | `vill_attraction` | — | INSERT |
+
+`vill_village` 既是源村庄表也是基本信息目标表。基本信息字段映射：
+
+| 业务含义 | `vill_village` 字段 |
+|----------|---------------------|
+| 村介绍 | `introduce` |
+| 村书记名 | `head_name` |
+| 村书记介绍 | `head_introduction` |
+| 联系电话 | `contact_phone` |
+
+> `vill_village_job` 暂不处理。
 
 每张表包含：
 
@@ -335,12 +345,13 @@ run:
 ## 14. 写代码前需用户提供
 
 - [x] 9 张业务表 + t_file 表 DDL — 已提供，见 `sql/`
-- [ ] 源村庄表 DDL（`vill_village` 是否即源表？行政区划字段名 + 村庄中心经纬度字段名）
+- [x] 源村庄表 — `vill_village` 即源表，也是基本信息目标表；基本信息字段 `introduce`/`head_name`/`head_introduction`/`contact_phone`
+- [ ] 源村庄表的行政区划字段名 + 村庄中心经纬度字段名（实现计划阶段读 DDL 确认）
 - [ ] Moonshot 实际 RPM / 并发上限
 - [ ] 七牛 bucket / access_key / secret_key / domain
-- [ ] 各业务表的图片 text 字段名（如 goods_imgs）确认
-- [x] t_file 表 creator 字段取值 — `creator_id=43`；另需 `folder_type`、`creator_user_type`、`creator_name` 取值
-- [ ] `vill_village_job` 表用途（是否与基本信息/村书记相关）
-- [ ] 基本信息（村书记介绍/联系电话/村介绍）写入哪张表（`vill_village` 本身？）
+- [ ] 各业务表的图片 text 字段名（如 goods_imgs）确认（实现计划阶段读 DDL 确认）
+- [x] t_file 表字段取值 — `creator_id=43`、`folder_type=1`、`creator_user_type=1`、`creator_name=乡投会员5446`
+- [x] `vill_village_job` — 暂不处理
+- [x] 基本信息目标表 — `vill_village` 本身（UPDATE）
 - [ ] 需填默认值的字段清单（表.字段 → 默认值，例如 `minsu.status=1`）
 - [x] 各表统一字段（字段名在所有表相同）及其默认值 — 已提供，见 §5.5
