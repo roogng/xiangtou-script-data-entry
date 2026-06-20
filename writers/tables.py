@@ -56,7 +56,7 @@ TABLE_CONFIGS = {
         has_comment_code=True,
         field_map={"name": "goods_name", "price": "price", "detail": "introduce"},
         image_fields={"images": "goods_imgs"},
-        extra_defaults={"goods_status": 2, "category_id": 0, "shop_id": 2},
+        extra_defaults={"goods_status": 2, "category_id": 0, "shop_id": 2, "price": 0},
     ),
     "news": TableConfig(
         table="vill_dynamics", mode="insert", gps=GpsMode.DECIMAL,

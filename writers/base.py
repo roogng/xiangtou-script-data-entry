@@ -71,8 +71,13 @@ class BaseWriter:
     def write(self, records: List[Record]) -> int:
         count = 0
         for rec in records:
-            if self._cfg.skip_if_no_images and not rec.images:
-                continue
+            if self._cfg.skip_if_no_images and not self._resolve(rec.images or []):
+                continue  # NOT NULL image columns can't be satisfied
+            if self._cfg.gps == GpsMode.POINT:
+                pt = resolve_point(rec.lng, rec.lat,
+                                   self._village.get("lng"), self._village.get("lat"))
+                if pt is None:
+                    continue  # POINT column is NOT NULL; cannot insert without coords
             row = self._build_row(rec)
             if self._cfg.mode == "update":
                 self._update(row)

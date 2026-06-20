@@ -33,11 +33,11 @@ def test_runner_marks_failed_on_pipeline_error(capsys):
     assert status.mark_failed.call_args.args[0] == 3
 
 
-def test_runner_overwrite_deletes_existing():
+def test_runner_overwrite_passes_flag_to_pipeline():
     db = MagicMock()
     status = MagicMock(); status.done_ids.return_value = set()
     pipe = MagicMock(); pipe.run.return_value = (1, "raw")
     runner = Runner(db, status, pipe, village_repo=_village_repo(), overwrite=True)
     runner.run([3])
-    sqls = [c.args[0] for c in db.execute.call_args_list]
-    assert any("DELETE FROM" in s for s in sqls)
+    # deletes now happen inside the pipeline (atomic); runner just forwards the flag
+    assert pipe.run.call_args.kwargs.get("overwrite") is True

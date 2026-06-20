@@ -41,3 +41,25 @@ def test_pipeline_rolls_back_on_parse_failure():
     with pytest.raises(RuntimeError):
         pipe.run(village, question="q")
     db.rollback.assert_called_once()
+
+
+def test_pipeline_overwrite_deletes_existing_before_writes():
+    raw = json.dumps({"scenic": [{"name": "s", "intro": "i", "images": [],
+                                   "lng": 1.0, "lat": 2.0}]}, ensure_ascii=False)
+    kimi = MagicMock(); kimi.ask.return_value = raw
+    uploader = MagicMock(); uploader.upload_url.return_value = ("", 0)
+    db = MagicMock(); db.execute.return_value = 1
+    village = {"id": 5, "village_name": "V", "province_name": "P", "city_name": "C",
+               "area_name": "A", "street_name": "S", "address": "x", "lng": 1.0, "lat": 2.0,
+               "province_id": 1, "city_id": 2, "area_id": 3, "street_id": 4}
+    pipe = Pipeline(db, kimi, uploader, file_repo=MagicMock(), defaults={}, goods_category_id=7)
+    pipe.run(village, "q", overwrite=True)
+    sqls = [c.args[0] for c in db.execute.call_args_list]
+    delete_idxs = [i for i, s in enumerate(sqls) if s.startswith("DELETE")]
+    write_idxs = [i for i, s in enumerate(sqls)
+                  if s.startswith("INSERT") or s.startswith("UPDATE")]
+    assert delete_idxs, "expected overwrite DELETEs"
+    assert write_idxs
+    assert max(delete_idxs) < min(write_idxs)   # deletes before writes (atomic)
+    assert any("vill_homestay_room" in s for s in sqls)  # sub-table via subquery, not village_id
+    db.commit.assert_called_once()

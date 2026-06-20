@@ -133,3 +133,60 @@ def test_subtable_rooms_inserted_with_fk():
     room_sql, room_args = db.execute.call_args_list[1].args
     assert "vill_homestay_room" in room_sql
     assert 100 in room_args
+
+
+def test_skip_when_skip_if_no_images_and_all_uploads_fail():
+    # vill_dynamics.cover/img_url are NOT NULL: a record whose image uploads all fail
+    # must be skipped, not inserted with empty image columns.
+    db = MagicMock(); db.execute.return_value = 1
+    def resolver(refs): return []  # all uploads fail
+    cfg = TableConfig(
+        table="vill_dynamics", mode="insert", gps=GpsMode.DECIMAL,
+        uniform_columns=["create_user_id"], has_comment_code=True,
+        field_map={"content": "context"},
+        image_fields={"images": "img_url"},
+        image_first_fields={"images": "cover"},
+        skip_if_no_images=True)
+    w = BaseWriter(db, cfg, resolver, village={"id": 1, "lng": 1.0, "lat": 2.0}, defaults={})
+    rec = Record(content="c", images=[ImageRef(url="http://x/broken.jpg")])
+    count = w.write([rec])
+    assert count == 0
+    db.execute.assert_not_called()
+
+
+def test_point_record_skipped_when_no_coords():
+    # POINT columns (location) are NOT NULL: skip when GPS can't be resolved.
+    db = MagicMock(); db.execute.return_value = 1
+    def resolver(refs): return []
+    cfg = TableConfig(
+        table="vill_attraction", mode="insert", gps=GpsMode.POINT,
+        point_column="location_point",
+        uniform_columns=["create_user_id"], has_comment_code=True,
+        field_map={"name": "attraction_name", "intro": "introduction"},
+        image_fields={"images": "cover_img"})
+    w = BaseWriter(db, cfg, resolver,
+                   village={"id": 1, "lng": None, "lat": None}, defaults={})
+    rec = Record(name="s", intro="i", lng=None, lat=None)
+    count = w.write([rec])
+    assert count == 0
+    db.execute.assert_not_called()
+
+
+def test_specialty_price_defaults_to_zero_when_missing():
+    # vill_goods.price is NOT NULL: when Kimi omits price, fall back to 0.
+    db = MagicMock(); db.execute.return_value = 1
+    def resolver(refs): return []
+    cfg = TableConfig(
+        table="vill_goods", mode="insert", gps=GpsMode.NONE,
+        uniform_columns=["create_user_id"], has_comment_code=True,
+        field_map={"name": "goods_name", "price": "price", "detail": "introduce"},
+        image_fields={"images": "goods_imgs"},
+        extra_defaults={"goods_status": 2, "category_id": 0, "shop_id": 2, "price": 0})
+    w = BaseWriter(db, cfg, resolver, village={"id": 1}, defaults={})
+    rec = Record(name="笋干", price=None, detail="d")  # no price
+    w.write([rec])
+    sql, args = db.execute.call_args.args
+    inside = sql.split("(", 1)[1].split(")", 1)[0]
+    cols = [c.strip() for c in inside.split(",")]
+    adict = dict(zip(cols, args))
+    assert adict["price"] == 0

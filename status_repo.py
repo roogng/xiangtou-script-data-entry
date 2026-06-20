@@ -1,7 +1,8 @@
 # status_repo.py
 
 _INSERT = """INSERT INTO task_status (village_id, status, started_at)
-VALUES (%s, 'pending', NOW())"""
+VALUES (%s, 'pending', NOW())
+ON DUPLICATE KEY UPDATE status='pending', started_at=NOW(), error_msg=NULL"""
 _UPDATE = """UPDATE task_status SET status=%s, error_msg=%s, records_written=%s,
 raw_response=%s, retry_count=retry_count+%s, finished_at=NOW() WHERE village_id=%s"""
 _DONE_IDS = "SELECT village_id FROM task_status WHERE status='done'"
@@ -14,12 +15,15 @@ class StatusRepo:
 
     def mark_pending(self, village_id):
         self._db.execute(_INSERT, (village_id,))
+        self._db.commit()
 
     def mark_done(self, village_id, records_written=0, raw=""):
         self._db.execute(_UPDATE, ("done", None, records_written, raw, 0, village_id))
+        self._db.commit()
 
     def mark_failed(self, village_id, error_msg, raw=""):
         self._db.execute(_UPDATE, ("failed", error_msg, 0, raw, 1, village_id))
+        self._db.commit()
 
     def done_ids(self):
         rows = self._db.query(_DONE_IDS)
