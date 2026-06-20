@@ -293,3 +293,4 @@ run:
 - [ ] file 表 creator 字段取值约定（脚本固定值？）
 - [ ] 源村庄表的行政区划字段名 + 村庄中心经纬度字段名
 - [ ] 需填默认值的字段清单（表.字段 → 默认值，例如 `minsu.status=1`、`file.creator='system'`）
+- [ ] 各表统一字段（字段名在所有表相同）及其默认值，例如 `creator/create_time/update_time/status/del_flag` 等。代码侧抽成公共基类，所有 writer 统一注入
