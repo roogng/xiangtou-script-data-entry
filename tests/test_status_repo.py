@@ -18,7 +18,7 @@ def test_mark_done_updates_status():
     repo.mark_done(123, records_written=5, raw="raw")
     sql, args = db.execute.call_args.args
     assert "UPDATE task_status SET" in sql
-    assert "status = %s" in sql
+    assert "status=%s" in sql
     assert args[0] == "done"
 
 
