@@ -12,6 +12,7 @@
 - `vill_restaurant.sql` — 农庄（农家乐）（子表：菜单 `vill_restaurant_dish.sql`）
 - `vill_attraction.sql` — 景区
 - `vill_village_sages.sql` — 乡贤和先贤
+- `t_file.sql` — 文件表
 
 ## 说明
 

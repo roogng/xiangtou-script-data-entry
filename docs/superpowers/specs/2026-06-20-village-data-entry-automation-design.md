@@ -154,6 +154,24 @@ CREATE TABLE task_status (
 - 坐标字段 `lng`/`lat`（基本信息、村贤、土特产除外）
 - 关联字段（村庄 id、子表外键等）
 
+### 5.5 统一字段（所有业务表共有，字段名相同）
+
+各业务表都含以下统一字段，代码侧抽成公共基类，所有 writer 统一注入默认值：
+
+| 字段 | 默认值 |
+|------|--------|
+| `create_user_id` | 43 |
+| `approve_status` | 2 |
+| `create_time` | now() |
+| `update_time` | now() |
+| `online` | 1 |
+| `approve_id` | 43 |
+| `homeowner_id` | 4 |
+| `shopId` | 2 |
+| `comment_code` | UUID 生成 |
+
+> 注：`comment_code` 每条记录生成一个新 UUID。这些字段是否在 9 张表里全部出现、有无例外，以用户 DDL 为准；writer 实现时按各表实际字段动态写入（基类提供默认值，表里没该字段则跳过）。
+
 ## 6. Kimi 提问与解析
 
 ### 6.1 提问构造
@@ -293,4 +311,4 @@ run:
 - [ ] file 表 creator 字段取值约定（脚本固定值？）
 - [ ] 源村庄表的行政区划字段名 + 村庄中心经纬度字段名
 - [ ] 需填默认值的字段清单（表.字段 → 默认值，例如 `minsu.status=1`、`file.creator='system'`）
-- [ ] 各表统一字段（字段名在所有表相同）及其默认值，例如 `creator/create_time/update_time/status/del_flag` 等。代码侧抽成公共基类，所有 writer 统一注入
+- [x] 各表统一字段（字段名在所有表相同）及其默认值 — 已提供，见 §5.5
