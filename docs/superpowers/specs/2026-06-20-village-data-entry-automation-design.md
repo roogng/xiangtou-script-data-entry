@@ -141,11 +141,39 @@ CREATE TABLE task_status (
 
 续跑逻辑：启动 `SELECT village_id FROM task_status WHERE status='done'` 得已完成集合 → 从 ID 清单过滤 → 新村庄插 `pending` → 处理完更新 `done/failed`。崩了重启自动接着跑。
 
-### 5.3 file 表（用户提供 DDL）
+### 5.3 t_file 表（DDL 已提供，见 `sql/t_file.sql`）
 
-字段：file_type、file_name、file_size、file_key、creator、create_time 等。
+写入字段：
 
-### 5.4 业务表（用户提供 DDL，共 9 张）
+| 字段 | 取值 |
+|------|------|
+| `file_id` | 自增，不填 |
+| `folder_type` | NOT NULL，需一个固定取值（待用户确认，见 §14） |
+| `file_name` | 原图文件名 |
+| `file_size` | 压缩后字节数 |
+| `file_key` | `public/common/{UUID}.jpg`（唯一键） |
+| `file_type` | 图片 MIME/扩展名，如 `jpg` |
+| `creator_id` | 43 |
+| `creator_user_type` | 待确认（见 §14） |
+| `creator_name` | 待确认（见 §14） |
+| `create_time` / `update_time` | 库默认 CURRENT_TIMESTAMP |
+
+### 5.4 业务表（DDL 已提供，见 `sql/`）
+
+类别 → 表映射（详细字段映射在实现计划阶段逐表梳理）：
+
+| 类别 | 主表 | 子表 |
+|------|------|------|
+| 基本信息 | `vill_village`（待确认，见下） | — |
+| 村贤 | `vill_village_sages` | — |
+| 民宿 | `vill_homestay` | `vill_homestay_room` |
+| 土特产 | `vill_goods` | — |
+| 动态 | `vill_dynamics` | — |
+| 活动 | `vill_village_activity` | `vill_village_activity_day`、`vill_village_activity_trip` |
+| 旅游路线 | `vill_village_travel` | — |
+| 农庄 | `vill_restaurant` | `vill_restaurant_dish` |
+| 景区 | `vill_attraction` | — |
+| — | `vill_village_job` | 用途待确认（可能与基本信息/村书记相关） |
 
 每张表包含：
 
@@ -153,6 +181,8 @@ CREATE TABLE task_status (
 - 图片 text 字段（如 `goods_imgs`），存逗号分隔的 file_key
 - 坐标字段 `lng`/`lat`（基本信息、村贤、土特产除外）
 - 关联字段（村庄 id、子表外键等）
+
+子表写入顺序：主表 INSERT 拿自增 id → 外键 INSERT 子表，事务包裹。
 
 ### 5.5 统一字段（所有业务表共有，字段名相同）
 
@@ -304,11 +334,13 @@ run:
 
 ## 14. 写代码前需用户提供
 
-- [ ] 9 张业务表 + file 表 + 源村庄表的 DDL（放 `sql/`，子表同文件注释标外键）
+- [x] 9 张业务表 + t_file 表 DDL — 已提供，见 `sql/`
+- [ ] 源村庄表 DDL（`vill_village` 是否即源表？行政区划字段名 + 村庄中心经纬度字段名）
 - [ ] Moonshot 实际 RPM / 并发上限
 - [ ] 七牛 bucket / access_key / secret_key / domain
 - [ ] 各业务表的图片 text 字段名（如 goods_imgs）确认
-- [ ] file 表 creator 字段取值约定（脚本固定值？）
-- [ ] 源村庄表的行政区划字段名 + 村庄中心经纬度字段名
-- [ ] 需填默认值的字段清单（表.字段 → 默认值，例如 `minsu.status=1`、`file.creator='system'`）
+- [x] t_file 表 creator 字段取值 — `creator_id=43`；另需 `folder_type`、`creator_user_type`、`creator_name` 取值
+- [ ] `vill_village_job` 表用途（是否与基本信息/村书记相关）
+- [ ] 基本信息（村书记介绍/联系电话/村介绍）写入哪张表（`vill_village` 本身？）
+- [ ] 需填默认值的字段清单（表.字段 → 默认值，例如 `minsu.status=1`）
 - [x] 各表统一字段（字段名在所有表相同）及其默认值 — 已提供，见 §5.5
