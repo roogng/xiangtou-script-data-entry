@@ -11,3 +11,5 @@ def test_question_contains_full_place_name():
     assert "dishes" in q
     assert "days" in q
     assert "trips" in q
+    assert "category" in q
+    assert "炒货" in q   # known sub-category name listed for specialty

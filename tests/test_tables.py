@@ -60,5 +60,6 @@ def test_sages_avatar_first_image():
 def test_specialty_has_goods_defaults():
     ed = TABLE_CONFIGS["specialty"].extra_defaults
     assert ed["goods_status"] == 2
-    assert "category_id" in ed
+    assert "category_id" not in ed  # moved to field_map (per-record, from Kimi via t_category)
     assert ed["shop_id"] == 2
+    assert "category_id" in TABLE_CONFIGS["specialty"].field_map.values()

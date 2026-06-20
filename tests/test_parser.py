@@ -26,6 +26,11 @@ def test_parse_sages_type_mapping():
     assert data.sages[0].sages_type == 2  # xiangxian -> 2
 
 
+def test_parse_specialty_category():
+    data = parse(_load())
+    assert data.specialty[0].category == "炒货"
+
+
 def test_parse_activity_nested_days_trips():
     data = parse(_load())
     a = data.activity[0]

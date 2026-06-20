@@ -2,7 +2,7 @@
   "basic_info": [{"head_name":"张三","secretary_intro":"书记介绍","contact_phone":"0571-123","village_intro":"村介绍","images":["http://img/a.jpg"]}],
   "sages": [{"type":"xiangxian","name":"李四","intro":"乡贤介绍","images":["http://img/b.jpg"]}],
   "minsu": [{"title":"民宿A","intro":"介绍","images":["http://img/c.jpg"],"lng":120.1,"lat":30.2,"rooms":[{"room_name":"101","room_type":2,"intro":"房型","price":200,"images":["http://img/r.jpg"]}]}],
-  "specialty": [{"name":"笋干","price":50,"detail":"详情","images":["http://img/d.jpg"]}],
+  "specialty": [{"name":"笋干","price":50,"detail":"详情","category":"炒货","images":["http://img/d.jpg"]}],
   "news": [{"content":"动态内容","images":["http://img/e.jpg"],"lng":120.1,"lat":30.2}],
   "activity": [{"name":"活动A","intro":"活动介绍","images":["http://img/f.jpg"],"lng":120.1,"lat":30.2,"days":[{"day_name":"第一天","intro":"日程","images":["http://img/g.jpg"],"trips":[{"trip_name":"行程1","trip_time":"09:00","intro":"行程介绍"}]}]}],
   "route": [{"name":"路线A","intro":"路线介绍","images":["http://img/h.jpg"],"lng":120.1,"lat":30.2}],

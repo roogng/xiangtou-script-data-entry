@@ -23,13 +23,15 @@ _DELETE_SQLS = [
 
 
 class Pipeline:
-    def __init__(self, db, kimi, uploader, file_repo, defaults, goods_category_id):
+    def __init__(self, db, kimi, uploader, file_repo, defaults, category_repo,
+                 goods_category_fallback=0):
         self._db = db
         self._kimi = kimi
         self._uploader = uploader
         self._file_repo = file_repo
         self._defaults = defaults
-        self._goods_category_id = goods_category_id
+        self._category_repo = category_repo
+        self._fallback = goods_category_fallback
 
     def run(self, village: dict, question: str, overwrite: bool = False):
         raw = self._kimi.ask(question)
@@ -69,13 +71,26 @@ class Pipeline:
                 records = getattr(data, category, [])
                 if not records:
                     continue
-                defaults = dict(self._defaults)
                 if category == "specialty":
-                    defaults["category_id"] = self._goods_category_id
-                writer = BaseWriter(self._db, cfg, resolve, village, defaults)
+                    records = self._resolve_specialty_categories(records)
+                    if not records:
+                        continue
+                writer = BaseWriter(self._db, cfg, resolve, village, dict(self._defaults))
                 total += writer.write(records)
             self._db.commit()
         except Exception:
             self._db.rollback()
             raise
         return total, raw
+
+    def _resolve_specialty_categories(self, records):
+        """Set category_id on each goods record from its Kimi-returned sub-category
+        name via t_category (parent_id > 0). Records that can't be matched and have
+        no fallback are skipped (vill_goods.category_id is NOT NULL)."""
+        out = []
+        for rec in records:
+            cid = self._category_repo.get(rec.category) or self._fallback
+            if cid:
+                rec.category_id = cid
+                out.append(rec)
+        return out

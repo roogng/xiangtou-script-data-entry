@@ -21,4 +21,4 @@ run:
   concurrency: 1
   village_ids_file: village_ids.txt
   overwrite: true
-  goods_category_id: 0   # TBD: user to fill real category id before full run
+  goods_category_fallback: 0   # category_id used when Kimi's sub-category name doesn't match t_category; 0 = skip that goods record

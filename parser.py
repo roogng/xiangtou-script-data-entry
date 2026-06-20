@@ -84,6 +84,7 @@ def _record(obj):
         contact_phone=obj.get("contact_phone", "") or "",
         village_intro=obj.get("village_intro", "") or "",
         sages_type=_sages_type(obj.get("type")),
+        category=obj.get("category", "") or "",
         lng=_num(obj.get("lng")),
         lat=_num(obj.get("lat")),
         images=_images(obj.get("images")),

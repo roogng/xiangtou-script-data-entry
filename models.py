@@ -55,6 +55,8 @@ class Record:
     contact_phone: str = ""
     village_intro: str = ""
     sages_type: int = 0         # 2=乡贤(在世) 1=先贤(已故)
+    category: str = ""          # specialty: sub-category name from Kimi
+    category_id: Optional[int] = None  # specialty: resolved t_category.category_id
     lng: Optional[float] = None
     lat: Optional[float] = None
     images: List[ImageRef] = field(default_factory=list)

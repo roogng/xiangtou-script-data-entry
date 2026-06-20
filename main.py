@@ -7,6 +7,7 @@ from qiniu_uploader import QiniuUploader
 from file_repo import FileRepo
 from status_repo import StatusRepo
 from village_repo import VillageRepo
+from category_repo import CategoryRepo
 from pipeline import Pipeline
 from runner import Runner
 
@@ -34,8 +35,10 @@ def main():
     file_repo = FileRepo(db, creator_id=43, creator_user_type=1, creator_name="乡投会员5446")
     status = StatusRepo(db)
     village_repo = VillageRepo(db)
+    category_repo = CategoryRepo(db)
     pipe = Pipeline(db, kimi, uploader, file_repo, defaults={},
-                    goods_category_id=cfg["run"].get("goods_category_id", 0))
+                    category_repo=category_repo,
+                    goods_category_fallback=cfg["run"].get("goods_category_fallback", 0))
     overwrite = bool(cfg["run"].get("overwrite", False))
 
     ids = load_village_ids(cfg["run"]["village_ids_file"])

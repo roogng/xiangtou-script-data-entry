@@ -54,9 +54,10 @@ TABLE_CONFIGS = {
         table="vill_goods", mode="insert", gps=GpsMode.NONE,
         uniform_columns=_U_COMMON,
         has_comment_code=True,
-        field_map={"name": "goods_name", "price": "price", "detail": "introduce"},
+        field_map={"name": "goods_name", "price": "price", "detail": "introduce",
+                   "category_id": "category_id"},
         image_fields={"images": "goods_imgs"},
-        extra_defaults={"goods_status": 2, "category_id": 0, "shop_id": 2, "price": 0},
+        extra_defaults={"goods_status": 2, "shop_id": 2, "price": 0},
     ),
     "news": TableConfig(
         table="vill_dynamics", mode="insert", gps=GpsMode.DECIMAL,
