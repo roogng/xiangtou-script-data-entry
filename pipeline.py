@@ -49,10 +49,13 @@ class Pipeline:
                 if not ref.url:
                     continue
                 if ref.url in cache:
-                    keys.append(cache[ref.url])
+                    if cache[ref.url]:
+                        keys.append(cache[ref.url])
                     continue
                 file_key, size = self._uploader.upload_url(ref.url)
                 if not file_key:
+                    cache[ref.url] = ""  # cache the failure so we don't retry/warn repeatedly
+                    print(f"[warn] image upload failed, skipped: {ref.url}")
                     continue
                 self._file_repo.insert(file_key=file_key,
                                        file_name=ref.url.split("/")[-1] or "image",

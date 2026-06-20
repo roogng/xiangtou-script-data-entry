@@ -85,3 +85,21 @@ def test_pipeline_skips_specialty_when_category_unmatched_and_no_fallback():
     sqls = [c.args[0] for c in db.execute.call_args_list]
     assert not any("vill_goods" in s and s.startswith("INSERT") for s in sqls)
     db.commit.assert_called_once()
+
+
+def test_pipeline_failed_image_cached_and_warned_once(capsys):
+    # sages has image_fields(img_url) + image_first_fields(avatar): two resolve calls
+    # for the same images. A failing URL must be uploaded once, warned once.
+    raw = json.dumps({"sages": [{"type": "xiangxian", "name": "李", "intro": "i",
+                                 "images": ["http://x/bad.jpg"]}]}, ensure_ascii=False)
+    kimi = MagicMock(); kimi.ask.return_value = raw
+    uploader = MagicMock(); uploader.upload_url.return_value = ("", 0)  # always fails
+    db = MagicMock(); db.execute.return_value = 1
+    village = {"id": 1, "village_name": "V", "lng": 1.0, "lat": 2.0}
+    pipe = Pipeline(db, kimi, uploader, file_repo=MagicMock(), defaults={},
+                    category_repo=MagicMock(), goods_category_fallback=0)
+    count, _ = pipe.run(village, "q")
+    assert count == 1  # sages has no skip_if_no_images -> record still written
+    assert uploader.upload_url.call_count == 1  # cached, not retried for avatar
+    out = capsys.readouterr().out
+    assert out.count("[warn]") == 1

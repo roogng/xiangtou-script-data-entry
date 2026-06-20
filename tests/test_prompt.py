@@ -13,3 +13,4 @@ def test_question_contains_full_place_name():
     assert "trips" in q
     assert "category" in q
     assert "炒货" in q   # known sub-category name listed for specialty
+    assert "禁止多类或多条复用同一张图片" in q  # distinct-images rule

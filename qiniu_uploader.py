@@ -1,9 +1,16 @@
 # qiniu_uploader.py
 import io
+import logging
 import uuid
 import requests
 from PIL import Image
 from qiniu import Auth, put_data
+
+# Silence the qiniu SDK's region-cache warning. On Windows the SDK persists region
+# info using strftime('%s.%f'), which fails (ValueError) and triggers a noisy logging
+# error. Region info is still used in-memory, so caching is non-essential.
+logging.getLogger("qiniu").setLevel(logging.ERROR)
+
 
 
 def generate_key(template: str = "public/common/{uuid}.jpg") -> str:
