@@ -1,0 +1,24 @@
+mysql:
+  host: 127.0.0.1
+  port: 3306
+  user: root
+  password: ""
+  database: vill
+moonshot:
+  api_key: "sk-..."
+  model: moonshot-v1-auto
+  rpm: 60
+  max_retries: 3
+  timeout: 120
+qiniu:
+  access_key: "..."
+  secret_key: "..."
+  bucket: "..."
+  domain: "https://example.com"
+  image_path_template: "public/common/{uuid}.jpg"
+  max_size_bytes: 1048576
+run:
+  concurrency: 1
+  village_ids_file: village_ids.txt
+  overwrite: true
+  goods_category_id: 0   # TBD: user to fill real category id before full run
