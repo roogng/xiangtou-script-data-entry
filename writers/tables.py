@@ -51,6 +51,7 @@ TABLE_CONFIGS = {
                    "village_intro": "introduce", "head_name": "head_name"},
         image_fields={"images": "entire_cover_img"},
         derived_fields={"head_introduction_html": _wrap_p("secretary_intro")},
+        keyword_label="乡村",
     ),
     "sages": TableConfig(
         table="vill_village_sages", mode="insert", gps=GpsMode.NONE,
@@ -60,6 +61,7 @@ TABLE_CONFIGS = {
         image_fields={"images": "img_url"},
         image_first_fields={"images": "avatar"},
         derived_fields={"context_html": _wrap_p("intro")},
+        keyword_label="人物", keyword_name_attr="head_name",
     ),
     "minsu": TableConfig(
         table="vill_homestay", mode="insert", gps=GpsMode.POINT,
@@ -71,6 +73,7 @@ TABLE_CONFIGS = {
         image_fields={"images": "cover_img"},
         extra_defaults={"homeowner_id": 4, "score": 10},
         derived_fields={"introduce_html": _wrap_p("intro")},
+        keyword_label="民宿", keyword_name_attr="title",
         sub_tables=[
             SubTableConfig(
                 table="vill_homestay_room", fk_column="homestay_id",
@@ -80,6 +83,7 @@ TABLE_CONFIGS = {
                            "intro": "introduction"},
                 image_fields={"images": "cover_img"},
                 transform=_room_transform,
+                keyword_label="民宿房间", keyword_name_attr="room_name",
             ),
         ],
     ),
@@ -92,6 +96,7 @@ TABLE_CONFIGS = {
         image_fields={"images": "goods_imgs"},
         extra_defaults={"goods_status": 2, "shop_id": 2, "price": 0},
         derived_fields={"introduce_html": _wrap_p("detail")},
+        keyword_label="土特产", keyword_name_attr="name",
     ),
     "news": TableConfig(
         table="vill_dynamics", mode="insert", gps=GpsMode.DECIMAL,
@@ -101,6 +106,7 @@ TABLE_CONFIGS = {
         image_fields={"images": "img_url"},
         image_first_fields={"images": "cover"},  # cover is NOT NULL single image
         skip_if_no_images=True,   # cover + img_url are NOT NULL
+        keyword_label="乡村风景",
     ),
     "activity": TableConfig(
         table="vill_village_activity", mode="insert", gps=GpsMode.DECIMAL,
@@ -109,6 +115,7 @@ TABLE_CONFIGS = {
         field_map={"name": "activity_name", "intro": "introduce"},
         image_fields={"images": "activity_imgs"},
         extra_defaults={"activity_status": 1},
+        keyword_label="乡村活动", keyword_name_attr="name",
         sub_tables=[
             SubTableConfig(
                 table="vill_village_activity_day", fk_column="activity_id",
@@ -117,6 +124,7 @@ TABLE_CONFIGS = {
                 field_map={"day_name": "day_name", "intro": "introduce"},
                 image_fields={"images": "travel_day_imgs"},
                 extra_defaults={"activity_type": 2},
+                keyword_label="乡村旅游", keyword_name_attr="day_name",
                 children=[
                     SubTableConfig(
                         table="vill_village_activity_trip", fk_column="day_id",
@@ -137,6 +145,7 @@ TABLE_CONFIGS = {
         has_comment_code=True,
         field_map={"name": "travel_name", "intro": "introduce"},
         image_fields={"images": "travel_imgs"},
+        keyword_label="旅游路线", keyword_name_attr="name",
     ),
     "farmhouse": TableConfig(
         table="vill_restaurant", mode="insert", gps=GpsMode.POINT,
@@ -147,6 +156,7 @@ TABLE_CONFIGS = {
         field_map={"name": "restaurant_name", "intro": "introduction"},
         image_fields={"images": "cover_img"},
         extra_defaults={"shop_id": 2},
+        keyword_label="农家乐", keyword_name_attr="name",
         sub_tables=[
             SubTableConfig(
                 table="vill_restaurant_dish", fk_column="restaurant_id",
@@ -155,6 +165,7 @@ TABLE_CONFIGS = {
                 field_map={"dish_name": "dish_name", "price": "unit_price",
                            "intro": "introduction"},
                 image_fields={"images": "cover_img"},
+                keyword_label="菜品", keyword_name_attr="dish_name",
             ),
         ],
     ),
@@ -166,5 +177,6 @@ TABLE_CONFIGS = {
         address_columns=_ADDR,
         field_map={"name": "attraction_name", "intro": "introduction"},
         image_fields={"images": "cover_img"},
+        keyword_label="景区", keyword_name_attr="name",
     ),
 }

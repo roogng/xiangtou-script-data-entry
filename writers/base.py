@@ -38,6 +38,8 @@ class SubTableConfig:
     children: List["SubTableConfig"] = field(default_factory=list)
     child_attr: str = ""        # attr on the sub-record holding nested children
     transform: Optional[Callable[[object, Dict[str, object]], None]] = None  # mutate row from item
+    keyword_label: str = ""             # category word prepended to fallback search keyword
+    keyword_name_attr: str = ""         # item attr holding the name (empty -> no name part)
 
 
 @dataclass
@@ -56,9 +58,11 @@ class TableConfig:
     sub_tables: List[SubTableConfig] = field(default_factory=list)
     skip_if_no_images: bool = False    # e.g. dynamics cover/img_url NOT NULL
     derived_fields: Dict[str, Callable[["Record"], object]] = field(default_factory=dict)  # column -> fn(record)
+    keyword_label: str = ""             # category word prepended to fallback search keyword
+    keyword_name_attr: str = ""         # record attr holding the name (empty -> village name)
 
 
-ImageResolver = Callable[[List[ImageRef]], List[str]]
+ImageResolver = Callable[[List[ImageRef], Optional[str]], List[str]]
 
 
 class BaseWriter:
@@ -73,7 +77,7 @@ class BaseWriter:
     def write(self, records: List[Record]) -> int:
         count = 0
         for rec in records:
-            if self._cfg.skip_if_no_images and not self._resolve(rec.images or []):
+            if self._cfg.skip_if_no_images and not self._resolve(rec.images or [], self._keyword(rec)):
                 continue  # NOT NULL image columns can't be satisfied
             if self._cfg.gps == GpsMode.POINT:
                 pt = resolve_point(rec.lng, rec.lat,
@@ -88,6 +92,23 @@ class BaseWriter:
                 self._write_sub_tables(rec, parent_id)
             count += 1
         return count
+
+    def _keyword(self, rec) -> str:
+        """Fallback search keyword: '{label} {name}'. Name comes from the
+        configured attr, or the village name when the record has no name."""
+        name = ""
+        if self._cfg.keyword_name_attr:
+            name = getattr(rec, self._cfg.keyword_name_attr, "") or ""
+        if not name:
+            name = self._village.get("village_name", "") or ""
+        return f"{self._cfg.keyword_label} {name}".strip()
+
+    @staticmethod
+    def _sub_keyword(sub, item) -> str:
+        name = ""
+        if sub.keyword_name_attr:
+            name = getattr(item, sub.keyword_name_attr, "") or ""
+        return f"{sub.keyword_label} {name}".strip()
 
     def _build_row(self, rec: Record) -> Dict[str, object]:
         row: Dict[str, object] = {}
@@ -114,12 +135,12 @@ class BaseWriter:
                 row[col] = val
         for attr, col in self._cfg.image_fields.items():
             refs = getattr(rec, attr, None) or []
-            keys = self._resolve(refs)
+            keys = self._resolve(refs, self._keyword(rec))
             if keys:
                 row[col] = ",".join(keys)
         for attr, col in self._cfg.image_first_fields.items():
             refs = getattr(rec, attr, None) or []
-            keys = self._resolve(refs)
+            keys = self._resolve(refs, self._keyword(rec))
             if keys:
                 row[col] = keys[0]
         self._apply_gps(rec, row)
@@ -192,7 +213,7 @@ class BaseWriter:
                 row[col] = val
         for attr, col in sub.image_fields.items():
             refs = getattr(item, attr, None) or []
-            keys = self._resolve(refs)
+            keys = self._resolve(refs, self._sub_keyword(sub, item))
             if keys:
                 row[col] = ",".join(keys)
         if sub.transform is not None:

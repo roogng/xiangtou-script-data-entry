@@ -103,3 +103,58 @@ def test_pipeline_failed_image_cached_and_warned_once(capsys):
     assert uploader.upload_url.call_count == 1  # cached, not retried for avatar
     out = capsys.readouterr().out
     assert out.count("[warn]") == 1
+
+
+def _scenic_raw(images):
+    return json.dumps({"scenic": [{"name": "s", "intro": "i", "images": images,
+                                    "lng": 1.0, "lat": 2.0}]}, ensure_ascii=False)
+
+
+def test_pipeline_falls_back_to_search_when_no_images():
+    # Kimi gave no images -> searcher fills one; cover_img gets the searched key.
+    kimi = MagicMock(); kimi.ask.return_value = _scenic_raw([])
+    uploader = MagicMock()
+    uploader.upload_url.return_value = ("public/common/found.jpg", 50)
+    searcher = MagicMock(); searcher.search.return_value = "http://found/x.jpg"
+    db = MagicMock(); db.execute.return_value = 1
+    file_repo = MagicMock()
+    village = {"id": 1, "village_name": "V", "lng": 1.0, "lat": 2.0,
+               "province_name": "P", "city_name": "C", "area_name": "A",
+               "street_name": "S", "address": "x",
+               "province_id": 1, "city_id": 2, "area_id": 3, "street_id": 4}
+    pipe = Pipeline(db, kimi, uploader, file_repo, defaults={},
+                    category_repo=MagicMock(), goods_category_fallback=0,
+                    image_searcher=searcher)
+    pipe.run(village, "q")
+    searcher.search.assert_called_once_with("景区 s")
+    # the searched image went through upload + t_file insert
+    uploader.upload_url.assert_called_with("http://found/x.jpg")
+    file_repo.insert.assert_called_with(file_key="public/common/found.jpg",
+                                        file_name="x.jpg", file_size=50, file_type="jpg")
+    # and landed in the scenic cover_img column
+    sql, args = db.execute.call_args.args
+    inside = sql.split("(", 1)[1].split(")", 1)[0]
+    adict = dict(zip([c.strip() for c in inside.split(",")], args))
+    assert adict["cover_img"] == "public/common/found.jpg"
+
+
+def test_pipeline_falls_back_to_search_when_all_uploads_fail():
+    # Kimi gave an image but the upload fails -> fallback search still applies.
+    kimi = MagicMock(); kimi.ask.return_value = _scenic_raw(["http://broken"])
+    uploader = MagicMock()
+    uploader.upload_url.side_effect = [("", 0), ("public/common/found.jpg", 50)]
+    searcher = MagicMock(); searcher.search.return_value = "http://found/x.jpg"
+    db = MagicMock(); db.execute.return_value = 1
+    village = {"id": 1, "village_name": "V", "lng": 1.0, "lat": 2.0,
+               "province_name": "P", "city_name": "C", "area_name": "A",
+               "street_name": "S", "address": "x",
+               "province_id": 1, "city_id": 2, "area_id": 3, "street_id": 4}
+    pipe = Pipeline(db, kimi, uploader, file_repo=MagicMock(), defaults={},
+                    category_repo=MagicMock(), goods_category_fallback=0,
+                    image_searcher=searcher)
+    pipe.run(village, "q")
+    searcher.search.assert_called_once_with("景区 s")
+    sql, args = db.execute.call_args.args
+    inside = sql.split("(", 1)[1].split(")", 1)[0]
+    adict = dict(zip([c.strip() for c in inside.split(",")], args))
+    assert adict["cover_img"] == "public/common/found.jpg"

@@ -24,7 +24,7 @@ _DELETE_SQLS = [
 
 class Pipeline:
     def __init__(self, db, kimi, uploader, file_repo, defaults, category_repo,
-                 goods_category_fallback=0):
+                 goods_category_fallback=0, image_searcher=None):
         self._db = db
         self._kimi = kimi
         self._uploader = uploader
@@ -32,6 +32,7 @@ class Pipeline:
         self._defaults = defaults
         self._category_repo = category_repo
         self._fallback = goods_category_fallback
+        self._searcher = image_searcher
 
     def run(self, village: dict, question: str, overwrite: bool = False):
         raw = self._kimi.ask(question)
@@ -42,8 +43,9 @@ class Pipeline:
             raise RuntimeError(f"parse failed: {e}") from e
 
         cache = {}
+        search_cache = {}  # keyword -> file_key (or "" if search/upload failed)
 
-        def resolve(refs):
+        def resolve(refs, keyword=None):
             keys = []
             for ref in refs:
                 if not ref.url:
@@ -62,6 +64,27 @@ class Pipeline:
                                        file_size=size, file_type="jpg")
                 cache[ref.url] = file_key
                 keys.append(file_key)
+            # Fallback: no usable image (Kimi gave none, or all uploads failed).
+            # Search the web by keyword and upload the first hit.
+            if not keys and keyword and self._searcher is not None:
+                if keyword in search_cache:
+                    return [search_cache[keyword]] if search_cache[keyword] else []
+                url = self._searcher.search(keyword)
+                if not url:
+                    search_cache[keyword] = ""
+                    print(f"[warn] image search found nothing: {keyword}")
+                    return []
+                file_key, size = self._uploader.upload_url(url)
+                if not file_key:
+                    search_cache[keyword] = ""
+                    print(f"[warn] searched image upload failed: {url}")
+                    return []
+                self._file_repo.insert(file_key=file_key,
+                                       file_name=url.split("/")[-1] or "image",
+                                       file_size=size, file_type="jpg")
+                cache[url] = file_key
+                search_cache[keyword] = file_key
+                return [file_key]
             return keys
 
         vid = village["id"]

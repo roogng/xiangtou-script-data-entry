@@ -25,7 +25,7 @@ def _args_to_dict(sql, args):
 def test_insert_builds_row_with_defaults_and_images():
     db = MagicMock()
     db.execute.return_value = 5
-    def resolver(refs):
+    def resolver(refs, keyword=None):
         return ["public/common/" + r.url[-5:] + ".jpg" for r in refs]
     w = BaseWriter(db, _cfg_goods(), resolver,
                    village={"id": 1, "village_name": "X"}, defaults={})
@@ -56,7 +56,7 @@ def _set_cols(sql, args):
 def test_update_mode_uses_where_id_and_no_village_id():
     db = MagicMock()
     db.execute.return_value = 1
-    def resolver(refs): return []
+    def resolver(refs, keyword=None): return []
     cfg = TableConfig(
         table="vill_village", mode="update", gps=GpsMode.NONE,
         uniform_columns=["create_user_id", "update_user_id", "approve_status",
@@ -79,7 +79,7 @@ def test_update_mode_uses_where_id_and_no_village_id():
 def test_point_gps_uses_wkt():
     db = MagicMock()
     db.execute.return_value = 1
-    def resolver(refs): return []
+    def resolver(refs, keyword=None): return []
     cfg = TableConfig(
         table="vill_attraction", mode="insert", gps=GpsMode.POINT,
         point_column="location_point",
@@ -107,7 +107,7 @@ def test_point_gps_uses_wkt():
 def test_subtable_rooms_inserted_with_fk():
     db = MagicMock()
     db.execute.side_effect = [100, 200]  # homestay id, then room id
-    def resolver(refs): return []
+    def resolver(refs, keyword=None): return []
     cfg = TableConfig(
         table="vill_homestay", mode="insert", gps=GpsMode.POINT,
         point_column="location",
@@ -139,7 +139,7 @@ def test_skip_when_skip_if_no_images_and_all_uploads_fail():
     # vill_dynamics.cover/img_url are NOT NULL: a record whose image uploads all fail
     # must be skipped, not inserted with empty image columns.
     db = MagicMock(); db.execute.return_value = 1
-    def resolver(refs): return []  # all uploads fail
+    def resolver(refs, keyword=None): return []  # all uploads fail
     cfg = TableConfig(
         table="vill_dynamics", mode="insert", gps=GpsMode.DECIMAL,
         uniform_columns=["create_user_id"], has_comment_code=True,
@@ -157,7 +157,7 @@ def test_skip_when_skip_if_no_images_and_all_uploads_fail():
 def test_point_record_skipped_when_no_coords():
     # POINT columns (location) are NOT NULL: skip when GPS can't be resolved.
     db = MagicMock(); db.execute.return_value = 1
-    def resolver(refs): return []
+    def resolver(refs, keyword=None): return []
     cfg = TableConfig(
         table="vill_attraction", mode="insert", gps=GpsMode.POINT,
         point_column="location_point",
@@ -175,7 +175,7 @@ def test_point_record_skipped_when_no_coords():
 def test_specialty_price_defaults_to_zero_when_missing():
     # vill_goods.price is NOT NULL: when Kimi omits price, fall back to 0.
     db = MagicMock(); db.execute.return_value = 1
-    def resolver(refs): return []
+    def resolver(refs, keyword=None): return []
     cfg = TableConfig(
         table="vill_goods", mode="insert", gps=GpsMode.NONE,
         uniform_columns=["create_user_id"], has_comment_code=True,
@@ -198,7 +198,7 @@ def test_basic_info_writes_head_introduction_html_wrapped_in_p():
     from writers.tables import TABLE_CONFIGS
     db = MagicMock()
     db.execute.return_value = 1
-    def resolver(refs): return []
+    def resolver(refs, keyword=None): return []
     cfg = TABLE_CONFIGS["basic_info"]
     w = BaseWriter(db, cfg, resolver, village={"id": 1}, defaults={})
     rec = Record(secretary_intro="书记介绍", village_intro="村介绍", head_name="张三")
@@ -216,7 +216,7 @@ def test_sages_writes_context_html_wrapped_in_p():
     from writers.tables import TABLE_CONFIGS
     db = MagicMock()
     db.execute.return_value = 1
-    def resolver(refs): return []
+    def resolver(refs, keyword=None): return []
     cfg = TABLE_CONFIGS["sages"]
     w = BaseWriter(db, cfg, resolver, village={"id": 1}, defaults={})
     rec = Record(name="村贤", intro="村贤介绍")
@@ -234,7 +234,7 @@ def test_minsu_writes_introduce_html_wrapped_in_p():
     from writers.tables import TABLE_CONFIGS
     db = MagicMock()
     db.execute.return_value = 1
-    def resolver(refs): return []
+    def resolver(refs, keyword=None): return []
     cfg = TABLE_CONFIGS["minsu"]
     w = BaseWriter(db, cfg, resolver,
                    village={"id": 1, "village_name": "X", "lng": 1.0, "lat": 2.0}, defaults={})
@@ -259,7 +259,7 @@ def test_room_price_derived_from_given_base():
     from writers.tables import TABLE_CONFIGS
     db = MagicMock()
     db.execute.side_effect = [100, 200]  # homestay id, room id
-    def resolver(refs): return []
+    def resolver(refs, keyword=None): return []
     cfg = TABLE_CONFIGS["minsu"]
     w = BaseWriter(db, cfg, resolver,
                    village={"id": 1, "village_name": "X", "lng": 1.0, "lat": 2.0}, defaults={})
@@ -283,7 +283,7 @@ def test_room_price_random_when_missing():
     from writers.tables import TABLE_CONFIGS
     db = MagicMock()
     db.execute.side_effect = [100, 200]
-    def resolver(refs): return []
+    def resolver(refs, keyword=None): return []
     cfg = TABLE_CONFIGS["minsu"]
     w = BaseWriter(db, cfg, resolver,
                    village={"id": 1, "village_name": "X", "lng": 1.0, "lat": 2.0}, defaults={})
@@ -305,7 +305,7 @@ def test_specialty_writes_introduce_html_wrapped_in_p():
     from writers.tables import TABLE_CONFIGS
     db = MagicMock()
     db.execute.return_value = 1
-    def resolver(refs): return []
+    def resolver(refs, keyword=None): return []
     cfg = TABLE_CONFIGS["specialty"]
     w = BaseWriter(db, cfg, resolver, village={"id": 1}, defaults={"category_id": 7})
     rec = Record(name="笋干", detail="详情介绍")
