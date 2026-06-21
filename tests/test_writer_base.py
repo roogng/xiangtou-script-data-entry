@@ -209,3 +209,21 @@ def test_basic_info_writes_head_introduction_html_wrapped_in_p():
     adict = dict(zip(cols, args[:-1]))  # last arg is the WHERE id
     assert adict["head_introduction"] == "书记介绍"
     assert adict["head_introduction_html"] == "<p>书记介绍</p>"
+
+
+def test_sages_writes_context_html_wrapped_in_p():
+    # sages.intro goes to context verbatim AND to context_html as <p>...</p>.
+    from writers.tables import TABLE_CONFIGS
+    db = MagicMock()
+    db.execute.return_value = 1
+    def resolver(refs): return []
+    cfg = TABLE_CONFIGS["sages"]
+    w = BaseWriter(db, cfg, resolver, village={"id": 1}, defaults={})
+    rec = Record(name="村贤", intro="村贤介绍")
+    w.write([rec])
+    sql, args = db.execute.call_args.args
+    inside = sql.split("(", 1)[1].split(")", 1)[0]
+    cols = [c.strip() for c in inside.split(",")]
+    adict = dict(zip(cols, args))
+    assert adict["context"] == "村贤介绍"
+    assert adict["context_html"] == "<p>村贤介绍</p>"
