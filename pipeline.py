@@ -3,6 +3,7 @@ import random
 from writers.base import BaseWriter
 from writers.tables import TABLE_CONFIGS
 from parser import parse
+import mood_dynamics
 
 # Overwrite cleanup. Child tables lacking village_id are deleted via subquery on
 # their parent's id. Order is child-first. All run inside the pipeline transaction
@@ -54,6 +55,11 @@ class Pipeline:
         if data is None:
             self._db.rollback()
             raise RuntimeError(f"parse failed after {self._parse_retries + 1} attempts: {last_err}")
+
+        # If the LLM gave no dynamics (vill_dynamics), fill 2 mood-dynamic records
+        # so the village always has some "心情动态" content.
+        if not data.news:
+            data.news = mood_dynamics.generate(village.get("village_name", ""), 2)
 
         cache = {}
         search_cache = {}  # keyword -> file_key (or "" if search/upload failed)

@@ -1,6 +1,6 @@
 # tests/test_pipeline.py
 import json, pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from pipeline import Pipeline
 
 
@@ -125,7 +125,8 @@ def test_pipeline_falls_back_to_search_when_no_images():
     pipe = Pipeline(db, kimi, uploader, file_repo, defaults={},
                     category_repo=MagicMock(), goods_category_fallback=0,
                     image_searcher=searcher)
-    pipe.run(village, "q")
+    with patch("mood_dynamics.generate", return_value=[]):
+        pipe.run(village, "q")
     searcher.search.assert_called_once_with("景区 s")
     # the searched image went through upload + t_file insert
     uploader.upload_url.assert_called_with("http://found/x.jpg")
@@ -152,7 +153,8 @@ def test_pipeline_falls_back_to_search_when_all_uploads_fail():
     pipe = Pipeline(db, kimi, uploader, file_repo=MagicMock(), defaults={},
                     category_repo=MagicMock(), goods_category_fallback=0,
                     image_searcher=searcher)
-    pipe.run(village, "q")
+    with patch("mood_dynamics.generate", return_value=[]):
+        pipe.run(village, "q")
     searcher.search.assert_called_once_with("景区 s")
     sql, args = db.execute.call_args.args
     inside = sql.split("(", 1)[1].split(")", 1)[0]
@@ -200,7 +202,8 @@ def test_pipeline_sages_no_image_fallback():
     pipe = Pipeline(db, kimi, uploader, file_repo=MagicMock(), defaults={},
                     category_repo=MagicMock(), goods_category_fallback=0,
                     image_searcher=searcher)
-    count, _ = pipe.run({"id": 1, "village_name": "V", "lng": 1.0, "lat": 2.0}, "q")
+    with patch("mood_dynamics.generate", return_value=[]):
+        count, _ = pipe.run({"id": 1, "village_name": "V", "lng": 1.0, "lat": 2.0}, "q")
     assert count == 1
     searcher.search.assert_not_called()
     db.query.assert_not_called()
@@ -233,3 +236,23 @@ def test_pipeline_gives_up_after_parse_retries():
         pipe.run({"id": 1, "village_name": "V"}, "q")
     assert kimi.ask.call_count == 3   # 1 + 2 retries
     db.rollback.assert_called_once()
+
+
+def test_pipeline_fills_two_mood_dynamics_when_news_empty():
+    # LLM returns no news -> pipeline generates 2 mood-dynamic records and writes
+    # them to vill_dynamics (images filled by the searcher fallback).
+    raw = json.dumps({"scenic": [{"name": "s", "intro": "i", "images": [],
+                                   "lng": 1.0, "lat": 2.0}]}, ensure_ascii=False)
+    kimi = MagicMock(); kimi.ask.return_value = raw
+    uploader = MagicMock()
+    uploader.upload_url.return_value = ("public/common/m.jpg", 50)
+    searcher = MagicMock(); searcher.search.return_value = "http://x/m.jpg"
+    db = MagicMock(); db.execute.return_value = 1; db.query.return_value = []
+    village = {"id": 1, "village_name": "金星村", "lng": 1.0, "lat": 2.0}
+    pipe = Pipeline(db, kimi, uploader, file_repo=MagicMock(), defaults={},
+                    category_repo=MagicMock(), goods_category_fallback=0,
+                    image_searcher=searcher)
+    pipe.run(village, "q")
+    dyn_sqls = [c.args[0] for c in db.execute.call_args_list
+                if "vill_dynamics" in c.args[0] and c.args[0].startswith("INSERT")]
+    assert len(dyn_sqls) == 2  # two mood-dynamic records written
