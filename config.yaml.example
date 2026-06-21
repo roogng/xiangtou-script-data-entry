@@ -23,5 +23,9 @@ run:
   village_ids_file: village_ids.txt
   overwrite: true
   goods_category_fallback: 0   # category_id used when Kimi's sub-category name doesn't match t_category; 0 = skip that goods record
+  premium:
+    enabled: false              # off by default; on -> ask LLM for popular villages in `city`, match to vill_village ids
+    city: "苏州市"               # which city to pick popular villages from (e.g. 苏州市)
+    limit: 20
 image_search:
   pixabay_key: ""   # free key from https://pixabay.com/accounts/register/ ; fallback image source (Pixabay License, no attribution)

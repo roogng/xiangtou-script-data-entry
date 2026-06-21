@@ -10,6 +10,7 @@ from village_repo import VillageRepo
 from category_repo import CategoryRepo
 from image_search import ImageSearcher
 from pipeline import Pipeline
+from premium_selector import PremiumSelector
 from runner import Runner
 
 
@@ -45,9 +46,16 @@ def main():
                     image_searcher=searcher)
     overwrite = bool(cfg["run"].get("overwrite", False))
 
-    ids = load_village_ids(cfg["run"]["village_ids_file"])
     if args.retry_failed:
         ids = list(status.failed_ids())
+    else:
+        premium = cfg["run"].get("premium") or {}
+        if premium.get("enabled"):
+            selector = PremiumSelector(db, kimi, premium.get("city", "苏州市"),
+                                       limit=int(premium.get("limit", 20)))
+            ids = selector.select()
+        else:
+            ids = load_village_ids(cfg["run"]["village_ids_file"])
     runner = Runner(db, status, pipe, village_repo, overwrite)
     runner.run(ids)
     db.close()
