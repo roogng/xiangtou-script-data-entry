@@ -29,7 +29,10 @@ class PremiumSelector:
         return ids
 
     def _popular_names(self):
-        raw = self._llm.ask(_PROMPT.format(city=self._city, limit=self._limit))
+        # No web_search here: listing well-known popular villages is knowledge,
+        # and search would make this slow without improving the result.
+        raw = self._llm.ask(_PROMPT.format(city=self._city, limit=self._limit),
+                            web_search=False)
         return _parse_names(raw)
 
     def _match(self, names):

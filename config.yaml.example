@@ -6,11 +6,13 @@ mysql:
   database: vill
 llm:
   api_key: "..."                 # Tencent LKEAP key
-  model: "MiniMax 2.7"
+  model: "glm-5.1"
   url: "https://api.lkeap.cloud.tencent.com/plan/v3/chat/completions"
   rpm: 60
   max_retries: 3
   timeout: 120
+  web_search: true              # GLM built-in web search (platform-side)
+  json_mode: true               # response_format json_object -> valid JSON (escapes quotes)
 qiniu:
   access_key: "..."
   secret_key: "..."
