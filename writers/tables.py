@@ -51,6 +51,7 @@ TABLE_CONFIGS = {
         field_map={"title": "title", "intro": "introduce"},
         image_fields={"images": "cover_img"},
         extra_defaults={"homeowner_id": 4},
+        derived_fields={"introduce_html": _wrap_p("intro")},
         sub_tables=[
             SubTableConfig(
                 table="vill_homestay_room", fk_column="homestay_id",

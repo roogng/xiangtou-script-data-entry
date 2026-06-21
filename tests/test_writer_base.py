@@ -227,3 +227,22 @@ def test_sages_writes_context_html_wrapped_in_p():
     adict = dict(zip(cols, args))
     assert adict["context"] == "村贤介绍"
     assert adict["context_html"] == "<p>村贤介绍</p>"
+
+
+def test_minsu_writes_introduce_html_wrapped_in_p():
+    # minsu.intro goes to introduce verbatim AND to introduce_html as <p>...</p>.
+    from writers.tables import TABLE_CONFIGS
+    db = MagicMock()
+    db.execute.return_value = 1
+    def resolver(refs): return []
+    cfg = TABLE_CONFIGS["minsu"]
+    w = BaseWriter(db, cfg, resolver,
+                   village={"id": 1, "village_name": "X", "lng": 1.0, "lat": 2.0}, defaults={})
+    rec = Record(title="t", intro="民宿介绍", images=[], lng=1.0, lat=2.0)
+    w.write([rec])
+    sql, args = db.execute.call_args.args
+    inside = sql.split("(", 1)[1].split(")", 1)[0]
+    cols = [c.strip() for c in inside.split(",")]
+    adict = dict(zip(cols, args))
+    assert adict["introduce"] == "民宿介绍"
+    assert adict["introduce_html"] == "<p>民宿介绍</p>"
