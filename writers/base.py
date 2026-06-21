@@ -37,6 +37,7 @@ class SubTableConfig:
     extra_defaults: Dict[str, object] = field(default_factory=dict)
     children: List["SubTableConfig"] = field(default_factory=list)
     child_attr: str = ""        # attr on the sub-record holding nested children
+    transform: Optional[Callable[[object, Dict[str, object]], None]] = None  # mutate row from item
 
 
 @dataclass
@@ -194,4 +195,6 @@ class BaseWriter:
             keys = self._resolve(refs)
             if keys:
                 row[col] = ",".join(keys)
+        if sub.transform is not None:
+            sub.transform(item, row)
         return row

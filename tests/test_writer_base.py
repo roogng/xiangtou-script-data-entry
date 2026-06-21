@@ -246,3 +246,73 @@ def test_minsu_writes_introduce_html_wrapped_in_p():
     adict = dict(zip(cols, args))
     assert adict["introduce"] == "民宿介绍"
     assert adict["introduce_html"] == "<p>民宿介绍</p>"
+
+
+def test_minsu_score_defaults_to_10():
+    from writers.tables import TABLE_CONFIGS
+    assert TABLE_CONFIGS["minsu"].extra_defaults["score"] == 10
+
+
+def test_room_price_derived_from_given_base():
+    # Room.price present -> week_day=base, holiday=base*1.3, special=base*0.7;
+    # max_residents=2; roomarea random in 10..30.
+    from writers.tables import TABLE_CONFIGS
+    db = MagicMock()
+    db.execute.side_effect = [100, 200]  # homestay id, room id
+    def resolver(refs): return []
+    cfg = TABLE_CONFIGS["minsu"]
+    w = BaseWriter(db, cfg, resolver,
+                   village={"id": 1, "village_name": "X", "lng": 1.0, "lat": 2.0}, defaults={})
+    rec = Record(title="t", intro="i", images=[], lng=1.0, lat=2.0,
+                 rooms=[Room(room_name="101", price=200)])
+    w.write([rec])
+    room_sql, room_args = db.execute.call_args_list[1].args
+    inside = room_sql.split("(", 1)[1].split(")", 1)[0]
+    cols = [c.strip() for c in inside.split(",")]
+    adict = dict(zip(cols, room_args))
+    assert adict["week_day_price"] == 200
+    assert adict["holiday_price"] == 260.0
+    assert adict["special_day_price"] == 140.0
+    assert adict["max_residents"] == 2
+    assert 10 <= int(adict["roomarea"]) <= 30
+
+
+def test_room_price_random_when_missing():
+    # Room.price None -> base random 100..300; the three prices stay consistent
+    # with each other (holiday == base*1.3, special == base*0.7).
+    from writers.tables import TABLE_CONFIGS
+    db = MagicMock()
+    db.execute.side_effect = [100, 200]
+    def resolver(refs): return []
+    cfg = TABLE_CONFIGS["minsu"]
+    w = BaseWriter(db, cfg, resolver,
+                   village={"id": 1, "village_name": "X", "lng": 1.0, "lat": 2.0}, defaults={})
+    rec = Record(title="t", intro="i", images=[], lng=1.0, lat=2.0,
+                 rooms=[Room(room_name="101", price=None)])
+    w.write([rec])
+    room_sql, room_args = db.execute.call_args_list[1].args
+    inside = room_sql.split("(", 1)[1].split(")", 1)[0]
+    cols = [c.strip() for c in inside.split(",")]
+    adict = dict(zip(cols, room_args))
+    base = adict["week_day_price"]
+    assert 100 <= base <= 300
+    assert adict["holiday_price"] == round(base * 1.3, 2)
+    assert adict["special_day_price"] == round(base * 0.7, 2)
+
+
+def test_specialty_writes_introduce_html_wrapped_in_p():
+    # specialty.detail -> introduce verbatim AND introduce_html as <p>...</p>.
+    from writers.tables import TABLE_CONFIGS
+    db = MagicMock()
+    db.execute.return_value = 1
+    def resolver(refs): return []
+    cfg = TABLE_CONFIGS["specialty"]
+    w = BaseWriter(db, cfg, resolver, village={"id": 1}, defaults={"category_id": 7})
+    rec = Record(name="笋干", detail="详情介绍")
+    w.write([rec])
+    sql, args = db.execute.call_args.args
+    inside = sql.split("(", 1)[1].split(")", 1)[0]
+    cols = [c.strip() for c in inside.split(",")]
+    adict = dict(zip(cols, args))
+    assert adict["introduce"] == "详情介绍"
+    assert adict["introduce_html"] == "<p>详情介绍</p>"

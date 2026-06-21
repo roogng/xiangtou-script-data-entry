@@ -1,4 +1,6 @@
 # writers/tables.py
+import random
+
 from writers.base import TableConfig, SubTableConfig, GpsMode
 
 
@@ -10,6 +12,23 @@ def _wrap_p(attr):
             return None
         return f"<p>{val}</p>"
     return fn
+
+
+def _room_transform(item, row):
+    """Fill vill_homestay_room price/area/occupancy defaults.
+
+    week_day_price = base (Room.price if given, else random 100~300);
+    holiday_price = base * 1.3; special_day_price = base * 0.7.
+    roomarea random 10~30; max_residents default 2.
+    """
+    row["max_residents"] = 2
+    base = getattr(item, "price", None)
+    if base is None or base == "":
+        base = random.randint(100, 300)
+    row["week_day_price"] = base
+    row["holiday_price"] = round(base * 1.3, 2)
+    row["special_day_price"] = round(base * 0.7, 2)
+    row["roomarea"] = str(random.randint(10, 30))
 
 # uniform column groups reused across tables
 _U_COMMON = ["create_user_id", "update_user_id", "approve_status",
@@ -50,7 +69,7 @@ TABLE_CONFIGS = {
         address_columns=_ADDR,
         field_map={"title": "title", "intro": "introduce"},
         image_fields={"images": "cover_img"},
-        extra_defaults={"homeowner_id": 4},
+        extra_defaults={"homeowner_id": 4, "score": 10},
         derived_fields={"introduce_html": _wrap_p("intro")},
         sub_tables=[
             SubTableConfig(
@@ -58,8 +77,9 @@ TABLE_CONFIGS = {
                 records_attr="rooms",
                 uniform_columns=_U_COMMON, has_comment_code=False,
                 field_map={"room_name": "room_name", "room_type": "room_type",
-                           "intro": "introduction", "price": "week_day_price"},
+                           "intro": "introduction"},
                 image_fields={"images": "cover_img"},
+                transform=_room_transform,
             ),
         ],
     ),
@@ -71,6 +91,7 @@ TABLE_CONFIGS = {
                    "category_id": "category_id"},
         image_fields={"images": "goods_imgs"},
         extra_defaults={"goods_status": 2, "shop_id": 2, "price": 0},
+        derived_fields={"introduce_html": _wrap_p("detail")},
     ),
     "news": TableConfig(
         table="vill_dynamics", mode="insert", gps=GpsMode.DECIMAL,
