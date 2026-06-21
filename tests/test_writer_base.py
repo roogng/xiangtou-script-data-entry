@@ -316,3 +316,30 @@ def test_specialty_writes_introduce_html_wrapped_in_p():
     adict = dict(zip(cols, args))
     assert adict["introduce"] == "详情介绍"
     assert adict["introduce_html"] == "<p>详情介绍</p>"
+
+
+def test_approve_id_default_is_75():
+    from writers.base import DEFAULT_VALUES
+    assert DEFAULT_VALUES["approve_id"] == 75
+
+
+def test_basic_info_sets_approve_time():
+    from writers.tables import TABLE_CONFIGS
+    assert "approve_time" in TABLE_CONFIGS["basic_info"].derived_fields
+    assert "approve_time" in TABLE_CONFIGS["minsu"].derived_fields
+    assert "approve_time" in TABLE_CONFIGS["specialty"].derived_fields
+    # tables WITHOUT the column must NOT set it
+    assert "approve_time" not in TABLE_CONFIGS["sages"].derived_fields
+    assert "approve_time" not in TABLE_CONFIGS["news"].derived_fields
+    assert "approve_time" not in TABLE_CONFIGS["farmhouse"].derived_fields
+
+
+def test_room_transform_sets_approve_time():
+    from writers.tables import _room_transform
+    row = {}
+    _room_transform(_DummyPrice(200), row)
+    assert "approve_time" in row
+
+
+class _DummyPrice:
+    def __init__(self, p): self.price = p

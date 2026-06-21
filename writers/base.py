@@ -18,7 +18,7 @@ DEFAULT_VALUES = {
     "create_user_id": 43,
     "update_user_id": 43,
     "approve_status": 2,
-    "approve_id": 43,
+    "approve_id": 75,
     "online": 1,
     "deleted_flag": 0,
     "member_id": 43,

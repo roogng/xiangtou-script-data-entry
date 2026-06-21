@@ -1,5 +1,6 @@
 # writers/tables.py
 import random
+from datetime import datetime
 
 from writers.base import TableConfig, SubTableConfig, GpsMode
 
@@ -12,6 +13,11 @@ def _wrap_p(attr):
             return None
         return f"<p>{val}</p>"
     return fn
+
+
+def _now(_rec):
+    """Current timestamp, for approve_time (only tables that have the column)."""
+    return datetime.now()
 
 
 def _room_transform(item, row):
@@ -29,6 +35,7 @@ def _room_transform(item, row):
     row["holiday_price"] = round(base * 1.3, 2)
     row["special_day_price"] = round(base * 0.7, 2)
     row["roomarea"] = str(random.randint(10, 30))
+    row["approve_time"] = datetime.now()
 
 # uniform column groups reused across tables
 _U_COMMON = ["create_user_id", "update_user_id", "approve_status",
@@ -50,7 +57,8 @@ TABLE_CONFIGS = {
         field_map={"secretary_intro": "head_introduction", "contact_phone": "contact_phone",
                    "village_intro": "introduce", "head_name": "head_name"},
         image_fields={"images": "entire_cover_img"},
-        derived_fields={"head_introduction_html": _wrap_p("secretary_intro")},
+        derived_fields={"head_introduction_html": _wrap_p("secretary_intro"),
+                        "approve_time": _now},
         keyword_label="乡村",
     ),
     "sages": TableConfig(
@@ -73,7 +81,8 @@ TABLE_CONFIGS = {
         field_map={"title": "title", "intro": "introduce"},
         image_fields={"images": "cover_img"},
         extra_defaults={"homeowner_id": 4, "score": 10},
-        derived_fields={"introduce_html": _wrap_p("intro")},
+        derived_fields={"introduce_html": _wrap_p("intro"),
+                        "approve_time": _now},
         keyword_label="民宿", keyword_name_attr="title",
         sub_tables=[
             SubTableConfig(
@@ -96,7 +105,8 @@ TABLE_CONFIGS = {
                    "category_id": "category_id"},
         image_fields={"images": "goods_imgs"},
         extra_defaults={"goods_status": 2, "shop_id": 2, "price": 0},
-        derived_fields={"introduce_html": _wrap_p("detail")},
+        derived_fields={"introduce_html": _wrap_p("detail"),
+                        "approve_time": _now},
         keyword_label="土特产", keyword_name_attr="name",
     ),
     "news": TableConfig(
