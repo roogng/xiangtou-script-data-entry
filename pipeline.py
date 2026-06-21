@@ -24,10 +24,10 @@ _DELETE_SQLS = [
 
 
 class Pipeline:
-    def __init__(self, db, kimi, uploader, file_repo, defaults, category_repo,
+    def __init__(self, db, llm, uploader, file_repo, defaults, category_repo,
                  goods_category_fallback=0, image_searcher=None, parse_retries=2):
         self._db = db
-        self._kimi = kimi
+        self._llm = llm
         self._uploader = uploader
         self._file_repo = file_repo
         self._defaults = defaults
@@ -37,13 +37,13 @@ class Pipeline:
         self._parse_retries = parse_retries
 
     def run(self, village: dict, question: str, overwrite: bool = False):
-        # Kimi's JSON is non-deterministic and occasionally malformed/truncated;
+        # The LLM's JSON is non-deterministic and occasionally malformed/truncated;
         # re-asking usually yields valid JSON. Retry before giving up.
         data = None
         raw = ""
         last_err = None
         for attempt in range(self._parse_retries + 1):
-            raw = self._kimi.ask(question)
+            raw = self._llm.ask(question)
             try:
                 data = parse(raw)
                 break
@@ -78,7 +78,7 @@ class Pipeline:
                                        file_size=size, file_type="jpg")
                 cache[ref.url] = file_key
                 keys.append(file_key)
-            # Fallback 1: no usable image (Kimi gave none, or all uploads failed).
+            # Fallback 1: no usable image (LLM gave none, or all uploads failed).
             # Search the web by keyword and upload the first hit.
             if not keys and keyword and self._searcher is not None:
                 if keyword in search_cache:
@@ -140,7 +140,7 @@ class Pipeline:
         return total, raw
 
     def _resolve_specialty_categories(self, records):
-        """Set category_id on each goods record from its Kimi-returned sub-category
+        """Set category_id on each goods record from its LLM-returned sub-category
         name via t_category (parent_id > 0). Records that can't be matched and have
         no fallback are skipped (vill_goods.category_id is NOT NULL)."""
         out = []

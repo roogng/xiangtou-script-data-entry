@@ -4,9 +4,10 @@ mysql:
   user: root
   password: ""
   database: vill
-moonshot:
-  api_key: "sk-..."
-  model: moonshot-v1-auto
+llm:
+  api_key: "..."                 # Tencent LKEAP key
+  model: "MiniMax 2.7"
+  url: "https://api.lkeap.cloud.tencent.com/plan/v3/chat/completions"
   rpm: 60
   max_retries: 3
   timeout: 120

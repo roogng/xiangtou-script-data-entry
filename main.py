@@ -2,7 +2,7 @@
 import argparse
 from config_loader import Config
 from db import MySQL
-from kimi_client import KimiClient
+from llm_client import LLMClient
 from qiniu_uploader import QiniuUploader
 from file_repo import FileRepo
 from status_repo import StatusRepo
@@ -31,7 +31,7 @@ def main():
 
     cfg = Config.load(args.config)
     db = MySQL.from_config(cfg)
-    kimi = KimiClient.from_config(cfg)
+    kimi = LLMClient.from_config(cfg)
     uploader = QiniuUploader.from_config(cfg)
     file_repo = FileRepo(db, creator_id=43, creator_user_type=1, creator_name="乡投会员5446")
     status = StatusRepo(db)
