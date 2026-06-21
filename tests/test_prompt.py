@@ -14,3 +14,6 @@ def test_question_contains_full_place_name():
     assert "category" in q
     assert "炒货" in q   # known sub-category name listed for specialty
     assert "禁止多类或多条复用同一张图片" in q  # distinct-images rule
+    assert "庙会" in q            # activity query scope
+    assert "农家乐" in q          # farmhouse query scope
+    assert "旅游路线" in q        # route query scope
