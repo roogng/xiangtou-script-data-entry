@@ -23,5 +23,4 @@ run:
   overwrite: true
   goods_category_fallback: 0   # category_id used when Kimi's sub-category name doesn't match t_category; 0 = skip that goods record
 image_search:
-  pixabay_key: ""   # free key from https://pixabay.com/accounts/register/ ; fallback image source
-  pexels_key: ""    # free key from https://www.pexels.com/api/ ; secondary fallback
+  pixabay_key: ""   # free key from https://pixabay.com/accounts/register/ ; fallback image source (Pixabay License, no attribution)

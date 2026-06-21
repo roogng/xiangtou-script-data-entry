@@ -38,8 +38,7 @@ def main():
     village_repo = VillageRepo(db)
     category_repo = CategoryRepo(db)
     is_cfg = cfg["image_search"] if "image_search" in cfg.raw else {}
-    searcher = ImageSearcher(pixabay_key=is_cfg.get("pixabay_key", ""),
-                             pexels_key=is_cfg.get("pexels_key", ""))
+    searcher = ImageSearcher(pixabay_key=is_cfg.get("pixabay_key", ""))
     pipe = Pipeline(db, kimi, uploader, file_repo, defaults={},
                     category_repo=category_repo,
                     goods_category_fallback=cfg["run"].get("goods_category_fallback", 0),

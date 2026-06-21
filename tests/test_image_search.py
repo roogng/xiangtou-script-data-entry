@@ -19,35 +19,20 @@ def test_pixabay_hit_returns_large_image_url():
     assert kwargs["params"]["lang"] == "zh"
 
 
-def test_pixabay_empty_falls_back_to_pexels():
-    s = ImageSearcher(pixabay_key="pk", pexels_key="pxk")
-    pb = _resp({"hits": []})
-    px = _resp({"photos": [{"src": {"large": "https://p/x.jpg"}}]})
-    with patch("image_search.httpx.get", side_effect=[pb, px]) as g:
-        assert s.search("景区 x") == "https://p/x.jpg"
-    # pexels call carries the authorization header
-    pexels_kwargs = g.call_args_list[1].kwargs
-    assert pexels_kwargs["headers"]["Authorization"] == "pxk"
-
-
-def test_both_empty_returns_none():
-    s = ImageSearcher(pixabay_key="pk", pexels_key="pxk")
-    pb = _resp({"hits": []})
-    px = _resp({"photos": []})
-    with patch("image_search.httpx.get", side_effect=[pb, px]):
+def test_pixabay_empty_returns_none():
+    s = ImageSearcher(pixabay_key="pk")
+    with patch("image_search.httpx.get", return_value=_resp({"hits": []})):
         assert s.search("whatever") is None
 
 
-def test_pixabay_error_falls_back_to_pexels():
-    s = ImageSearcher(pixabay_key="pk", pexels_key="pxk")
-    pb = MagicMock(); pb.raise_for_status.side_effect = Exception("net")
-    px = _resp({"photos": [{"src": {"large": "https://p/f.jpg"}}]})
-    with patch("image_search.httpx.get", side_effect=[pb, px]):
-        assert s.search("k") == "https://p/f.jpg"
+def test_pixabay_error_returns_none():
+    s = ImageSearcher(pixabay_key="pk")
+    bad = MagicMock(); bad.raise_for_status.side_effect = Exception("net")
+    with patch("image_search.httpx.get", return_value=bad):
+        assert s.search("k") is None
 
 
-def test_missing_keys_skips_search():
-    # no keys configured -> search returns None without calling out
+def test_missing_key_skips_search():
     s = ImageSearcher()
     with patch("image_search.httpx.get") as g:
         assert s.search("k") is None
