@@ -45,3 +45,21 @@ def test_upload_returns_file_key():
         key = upload_image_bytes(b"imgbytes", "public/common/abc.jpg",
                                  bucket="b", auth=MagicMock())
         assert key == "public/common/abc.jpg"
+
+
+def test_upload_url_sends_browser_user_agent():
+    # image CDNs (Pixabay) block the default python-requests UA; upload_url must
+    # send a browser UA so fallback images actually download.
+    from unittest.mock import patch
+    from qiniu_uploader import QiniuUploader
+    with patch("qiniu_uploader.requests.get") as g, \
+         patch("qiniu_uploader.upload_image_bytes", return_value="public/common/x.jpg"):
+        resp = MagicMock(); resp.content = b"\xff\xd8\xffimg"
+        resp.raise_for_status.return_value = None
+        g.return_value = resp
+        up = QiniuUploader("ak", "sk", "bucket", "domain", 1048576,
+                           "public/common/{uuid}.jpg")
+        fk, _sz = up.upload_url("http://x/a.jpg")
+        assert fk == "public/common/x.jpg"
+        _, kwargs = g.call_args
+        assert "Mozilla" in kwargs["headers"]["User-Agent"]

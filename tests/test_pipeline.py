@@ -207,3 +207,29 @@ def test_pipeline_sages_no_image_fallback():
     sql, args = db.execute.call_args.args
     cols = _insert_cols(sql)
     assert "img_url" not in cols and "avatar" not in cols
+
+
+def test_pipeline_retries_parse_until_success():
+    # First ask returns malformed JSON, second returns valid -> pipeline proceeds.
+    good = json.dumps({"scenic": [{"name": "s", "intro": "i", "images": [],
+                                    "lng": 1.0, "lat": 2.0}]}, ensure_ascii=False)
+    kimi = MagicMock(); kimi.ask.side_effect = ["not json", good]
+    uploader = MagicMock(); uploader.upload_url.return_value = ("", 0)
+    db = MagicMock(); db.execute.return_value = 1; db.query.return_value = []
+    pipe = Pipeline(db, kimi, uploader, file_repo=MagicMock(), defaults={},
+                    category_repo=MagicMock(), goods_category_fallback=0)
+    count, _ = pipe.run(_full_village(), "q")
+    assert kimi.ask.call_count == 2
+    assert count == 1
+    db.commit.assert_called_once()
+
+
+def test_pipeline_gives_up_after_parse_retries():
+    kimi = MagicMock(); kimi.ask.return_value = "not json"
+    db = MagicMock()
+    pipe = Pipeline(db, kimi, MagicMock(), file_repo=MagicMock(), defaults={},
+                    category_repo=MagicMock(), goods_category_fallback=0, parse_retries=2)
+    with pytest.raises(RuntimeError):
+        pipe.run({"id": 1, "village_name": "V"}, "q")
+    assert kimi.ask.call_count == 3   # 1 + 2 retries
+    db.rollback.assert_called_once()

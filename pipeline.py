@@ -25,7 +25,7 @@ _DELETE_SQLS = [
 
 class Pipeline:
     def __init__(self, db, kimi, uploader, file_repo, defaults, category_repo,
-                 goods_category_fallback=0, image_searcher=None):
+                 goods_category_fallback=0, image_searcher=None, parse_retries=2):
         self._db = db
         self._kimi = kimi
         self._uploader = uploader
@@ -34,14 +34,26 @@ class Pipeline:
         self._category_repo = category_repo
         self._fallback = goods_category_fallback
         self._searcher = image_searcher
+        self._parse_retries = parse_retries
 
     def run(self, village: dict, question: str, overwrite: bool = False):
-        raw = self._kimi.ask(question)
-        try:
-            data = parse(raw)
-        except Exception as e:
+        # Kimi's JSON is non-deterministic and occasionally malformed/truncated;
+        # re-asking usually yields valid JSON. Retry before giving up.
+        data = None
+        raw = ""
+        last_err = None
+        for attempt in range(self._parse_retries + 1):
+            raw = self._kimi.ask(question)
+            try:
+                data = parse(raw)
+                break
+            except Exception as e:
+                last_err = e
+                if attempt < self._parse_retries:
+                    print(f"[warn] parse attempt {attempt + 1}/{self._parse_retries + 1} failed, retrying: {e}")
+        if data is None:
             self._db.rollback()
-            raise RuntimeError(f"parse failed: {e}") from e
+            raise RuntimeError(f"parse failed after {self._parse_retries + 1} attempts: {last_err}")
 
         cache = {}
         search_cache = {}  # keyword -> file_key (or "" if search/upload failed)

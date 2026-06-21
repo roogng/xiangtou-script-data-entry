@@ -11,6 +11,19 @@ from qiniu import Auth, put_data
 # error. Region info is still used in-memory, so caching is non-essential.
 logging.getLogger("qiniu").setLevel(logging.ERROR)
 
+# Disable the qiniu SDK's on-disk region cache. On Windows the SDK "shrinks" the
+# cache file with os.rename(src, persist_path), which raises FileExistsError when
+# the target exists — breaking every upload after the first. In-memory memo cache
+# still works, so uploads resolve regions fine without the file.
+from qiniu.http import regions_provider as _rp
+_rp._global_cache_scope = _rp._global_cache_scope._replace(persist_path=None)
+
+# Some image CDNs (e.g. Pixabay) block the default python-requests User-Agent
+# and start refusing after the first rapid request. A browser UA avoids this.
+_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                          "AppleWebKit/537.36 (KHTML, like Gecko) "
+                          "Chrome/120.0.0.0 Safari/537.36"}
+
 
 
 def generate_key(template: str = "public/common/{uuid}.jpg") -> str:
@@ -68,7 +81,7 @@ class QiniuUploader:
     def upload_url(self, url: str):
         """Download a remote image, compress, upload. Returns (file_key, size) or ('', 0) on failure."""
         try:
-            r = requests.get(url, timeout=30)
+            r = requests.get(url, timeout=30, headers=_HEADERS)
             r.raise_for_status()
             data = r.content
         except Exception:

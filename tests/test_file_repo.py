@@ -20,3 +20,14 @@ def test_insert_returns_file_id_and_uses_defaults():
     assert args[6] == 1          # creator_user_type
     assert args[7] == "乡投会员5446"
     assert fid == 99
+
+
+def test_insert_truncates_long_file_name():
+    # Pixabay hash filenames exceed t_file.file_name varchar(100); must truncate.
+    db = MagicMock()
+    repo = FileRepo(db, creator_id=43, creator_user_type=1, creator_name="x")
+    long_name = "g" * 130 + ".jpg"
+    repo.insert(file_key="public/common/k.jpg", file_name=long_name,
+                file_size=123, file_type="jpg")
+    args = db.execute.call_args.args[1]
+    assert args[1] == ("g" * 100)   # file_name truncated to column max
