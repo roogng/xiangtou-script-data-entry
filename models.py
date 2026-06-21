@@ -16,6 +16,7 @@ class Room:
     intro: str = ""
     price: Optional[float] = None
     images: List[ImageRef] = field(default_factory=list)
+    image_keys: List[str] = field(default_factory=list)  # pre-resolved file_keys (skip upload/resolve)
 
 
 @dataclass

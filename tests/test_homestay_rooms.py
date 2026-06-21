@@ -24,3 +24,16 @@ def test_generate_caps_at_pool_size():
     rooms = generate(100)
     assert len(rooms) == 5               # only 5 room types exist
     assert len({r.room_type for r in rooms}) == 5
+
+
+def test_generate_assigns_distinct_image_sets():
+    sets = [["public/common/a.jpg"], ["public/common/b.jpg"]]
+    rooms = generate(2, image_sets=sets)
+    assert rooms[0].image_keys == ["public/common/a.jpg"]
+    assert rooms[1].image_keys == ["public/common/b.jpg"]
+    assert rooms[0].image_keys != rooms[1].image_keys
+
+
+def test_generate_no_image_sets_leaves_keys_empty():
+    rooms = generate(2)
+    assert all(r.image_keys == [] for r in rooms)

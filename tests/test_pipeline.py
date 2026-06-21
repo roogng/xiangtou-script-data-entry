@@ -307,3 +307,69 @@ def test_pipeline_mood_records_get_distinct_db_images():
     assert len(set(img_urls)) == 2  # the two records have distinct images
     assert "public/common/a.jpg,public/common/b.jpg" in img_urls
     assert "public/common/c.jpg" in img_urls
+
+
+def test_pipeline_rooms_get_distinct_db_images():
+    # homestay with no rooms -> 2 generated rooms, each reusing a DISTINCT
+    # existing cover_img from vill_homestay_room (no upload, no duplicate).
+    raw = json.dumps({"minsu": [{"title": "t", "intro": "i", "images": [],
+                                  "lng": 1.0, "lat": 2.0, "rooms": []}]},
+                     ensure_ascii=False)
+    kimi = MagicMock(); kimi.ask.return_value = raw
+    uploader = MagicMock()
+    db = MagicMock(); db.execute.return_value = 1
+    # _homestay_room_image_sets query (no "AS v") returns 2 distinct cover_img;
+    # the resolver's DB fallback ("AS v") returns [] so the parent homestay
+    # doesn't need an image.
+    def _q(sql, args=None):
+        return [] if "AS v" in sql else [
+            {"cover_img": "public/common/a.jpg"},
+            {"cover_img": "public/common/b.jpg"},
+        ]
+    db.query.side_effect = _q
+    village = {"id": 1, "village_name": "V", "lng": 1.0, "lat": 2.0}
+    pipe = Pipeline(db, kimi, uploader, file_repo=MagicMock(), defaults={},
+                    category_repo=MagicMock(), goods_category_fallback=0)
+    with patch.object(Pipeline, "_fill_news"):
+        pipe.run(village, "q")
+    uploader.upload_url.assert_not_called()  # images from DB, no upload
+    room = [(c.args[0], c.args[1]) for c in db.execute.call_args_list
+            if "vill_homestay_room" in c.args[0] and c.args[0].startswith("INSERT")]
+    assert len(room) == 2
+    covers = []
+    for sql, args in room:
+        inside = sql.split("(", 1)[1].split(")", 1)[0]
+        adict = dict(zip([c.strip() for c in inside.split(",")], args))
+        covers.append(adict["cover_img"])
+    assert len(set(covers)) == 2  # distinct
+
+
+def test_pipeline_db_fallback_gives_distinct_images_across_records():
+    # Two scenic records, no images, no searcher -> both hit the DB fallback.
+    # With dedup + round-robin they must get DISTINCT images (not the same one).
+    raw = json.dumps({"scenic": [
+        {"name": "a", "intro": "i", "images": [], "lng": 1.0, "lat": 2.0},
+        {"name": "b", "intro": "i", "images": [], "lng": 1.0, "lat": 2.0}
+    ]}, ensure_ascii=False)
+    kimi = MagicMock(); kimi.ask.return_value = raw
+    uploader = MagicMock()
+    db = MagicMock(); db.execute.return_value = 1
+    db.query.return_value = [
+        {"v": "public/common/one.jpg"},
+        {"v": "public/common/two.jpg"},
+        {"v": "public/common/one.jpg"},   # duplicate -> must be deduped
+    ]
+    village = _full_village()
+    pipe = Pipeline(db, kimi, uploader, file_repo=MagicMock(), defaults={},
+                    category_repo=MagicMock(), goods_category_fallback=0)  # no searcher
+    with patch.object(Pipeline, "_fill_news"):
+        pipe.run(village, "q")
+    inserts = [(c.args[0], c.args[1]) for c in db.execute.call_args_list
+               if "vill_attraction" in c.args[0] and c.args[0].startswith("INSERT")]
+    covers = []
+    for sql, args in inserts:
+        inside = sql.split("(", 1)[1].split(")", 1)[0]
+        adict = dict(zip([c.strip() for c in inside.split(",")], args))
+        covers.append(adict["cover_img"])
+    assert len(covers) == 2
+    assert len(set(covers)) == 2  # distinct, despite the duplicate in the pool

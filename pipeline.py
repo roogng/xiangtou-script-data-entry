@@ -62,10 +62,12 @@ class Pipeline:
         self._fill_news(data, village)
 
         # If a homestay has no rooms (vill_homestay_room), fill 2 random rooms so
-        # every homestay has some room data.
+        # every homestay has some room data. Reuse distinct existing images from
+        # vill_homestay_room so the rooms don't all share the same Pixabay image.
         for rec in data.minsu:
             if not rec.rooms:
-                rec.rooms = homestay_rooms.generate(2)
+                rec.rooms = homestay_rooms.generate(
+                    2, image_sets=self._homestay_room_image_sets(2))
 
         cache = {}
         search_cache = {}  # keyword -> file_key (or "" if search/upload failed)
@@ -114,19 +116,24 @@ class Pipeline:
                             search_cache[keyword] = file_key
                             keys = [file_key]
             # Fallback 2: web search also empty -> reuse an existing image value
-            # from the same table/column (random pick of recent non-empty rows).
+            # from the same table/column. Dedup + round-robin so successive
+            # records get DISTINCT images (not 50 copies of the same one).
             if not keys and table and column:
                 ck = f"{table}.{column}"
-                vals = db_cache.get(ck)
-                if vals is None:
+                state = db_cache.get(ck)
+                if state is None:
                     rows = self._db.query(
                         f"SELECT {column} AS v FROM {table} "
                         f"WHERE {column} IS NOT NULL AND {column} != '' "
                         f"ORDER BY id DESC LIMIT 50")
-                    vals = [r["v"] for r in rows] if rows else []
-                    db_cache[ck] = vals
-                if vals:
-                    keys = (random.choice(vals) or "").split(",")
+                    pool = list({r["v"] for r in rows if r["v"]})
+                    random.shuffle(pool)
+                    state = {"pool": pool, "i": 0}
+                    db_cache[ck] = state
+                if state["pool"]:
+                    val = state["pool"][state["i"] % len(state["pool"])]
+                    state["i"] += 1
+                    keys = (val or "").split(",")
             return keys
 
         vid = village["id"]
@@ -150,6 +157,26 @@ class Pipeline:
             self._db.rollback()
             raise
         return total, raw
+
+    def _homestay_room_image_sets(self, n):
+        """Return up to n random distinct file_key lists from existing
+        vill_homestay_room rows, so generated rooms reuse real images."""
+        rows = self._db.query(
+            "SELECT cover_img FROM vill_homestay_room "
+            "WHERE cover_img IS NOT NULL AND cover_img != '' ORDER BY id DESC LIMIT 50")
+        seen = set()
+        pool = []
+        for r in rows:
+            u = r["cover_img"]
+            if not u or u in seen:
+                continue
+            seen.add(u)
+            keys = [k for k in u.split(",") if k]
+            if keys:
+                pool.append(keys)
+        if not pool:
+            return []
+        return random.sample(pool, min(n, len(pool)))
 
     def _fill_news(self, data, village):
         """Generate 2 mood-dynamic records when the LLM gave none, each reusing a

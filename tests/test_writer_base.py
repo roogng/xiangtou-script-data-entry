@@ -365,3 +365,27 @@ def test_news_uses_pre_resolved_image_keys_without_resolve():
     adict = dict(zip([c.strip() for c in inside.split(",")], args))
     assert adict["img_url"] == "public/common/a.jpg,public/common/b.jpg"
     assert adict["cover"] == "public/common/a.jpg"
+
+
+def test_room_uses_pre_resolved_image_keys_without_resolve():
+    # generated rooms carry pre-resolved file_keys (from vill_homestay_room);
+    # the writer must use them directly and NOT call the resolver.
+    from writers.tables import TABLE_CONFIGS
+    from models import Room
+    db = MagicMock(); db.execute.side_effect = [100, 200]  # homestay id, room id
+    calls = {"n": 0}
+    def resolver(refs, keyword=None, table=None, column=None):
+        calls["n"] += 1
+        return ["public/common/should-not-be-used.jpg"]
+    cfg = TABLE_CONFIGS["minsu"]
+    w = BaseWriter(db, cfg, resolver,
+                   village={"id": 1, "village_name": "X", "lng": 1.0, "lat": 2.0}, defaults={})
+    rec = Record(title="t", intro="i", images=[], image_keys=["public/common/parent.jpg"],
+                 lng=1.0, lat=2.0,
+                 rooms=[Room(room_name="大床房", image_keys=["public/common/a.jpg"])])
+    w.write([rec])
+    assert calls["n"] == 0  # resolver never called — parent and room both pre-resolved
+    room_sql, room_args = db.execute.call_args_list[1].args
+    inside = room_sql.split("(", 1)[1].split(")", 1)[0]
+    adict = dict(zip([c.strip() for c in inside.split(",")], room_args))
+    assert adict["cover_img"] == "public/common/a.jpg"

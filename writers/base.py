@@ -237,6 +237,9 @@ class BaseWriter:
             if val is not None and val != "":
                 row[col] = val
         for attr, col in sub.image_fields.items():
+            if attr == "images" and getattr(item, "image_keys", None):
+                row[col] = ",".join(item.image_keys)   # pre-resolved (e.g. rooms from DB)
+                continue
             refs = getattr(item, attr, None) or []
             keys = self._resolve(refs, self._sub_keyword(sub, item), sub.table, col)
             if keys:
