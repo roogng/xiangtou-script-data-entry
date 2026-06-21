@@ -80,8 +80,9 @@ class BaseWriter:
         for rec in records:
             if self._cfg.skip_if_no_images:
                 col = self._first_image_col()
-                if col is None or not self._resolve(rec.images or [], self._keyword(rec),
-                                                    self._fb_table(), col):
+                has_img = bool(rec.image_keys) or self._resolve(
+                    rec.images or [], self._keyword(rec), self._fb_table(), col)
+                if col is None or not has_img:
                     continue  # NOT NULL image columns can't be satisfied
             if self._cfg.gps == GpsMode.POINT:
                 pt = resolve_point(rec.lng, rec.lat,
@@ -152,11 +153,17 @@ class BaseWriter:
             if val is not None and val != "":
                 row[col] = val
         for attr, col in self._cfg.image_fields.items():
+            if attr == "images" and rec.image_keys:
+                row[col] = ",".join(rec.image_keys)   # pre-resolved (e.g. mood dynamics from DB)
+                continue
             refs = getattr(rec, attr, None) or []
             keys = self._resolve(refs, self._keyword(rec), self._fb_table(), col)
             if keys:
                 row[col] = ",".join(keys)
         for attr, col in self._cfg.image_first_fields.items():
+            if attr == "images" and rec.image_keys:
+                row[col] = rec.image_keys[0]
+                continue
             refs = getattr(rec, attr, None) or []
             keys = self._resolve(refs, self._keyword(rec), self._fb_table(), col)
             if keys:

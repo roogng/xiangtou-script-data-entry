@@ -59,8 +59,7 @@ class Pipeline:
 
         # If the LLM gave no dynamics (vill_dynamics), fill 2 mood-dynamic records
         # so the village always has some "心情动态" content.
-        if not data.news:
-            data.news = mood_dynamics.generate(village.get("village_name", ""), 2)
+        self._fill_news(data, village)
 
         # If a homestay has no rooms (vill_homestay_room), fill 2 random rooms so
         # every homestay has some room data.
@@ -151,6 +150,35 @@ class Pipeline:
             self._db.rollback()
             raise
         return total, raw
+
+    def _fill_news(self, data, village):
+        """Generate 2 mood-dynamic records when the LLM gave none, each reusing a
+        distinct existing image from vill_dynamics so they don't duplicate."""
+        if data.news:
+            return
+        image_sets = self._dynamics_image_sets(2)
+        data.news = mood_dynamics.generate(village.get("village_name", ""), 2,
+                                           image_sets=image_sets)
+
+    def _dynamics_image_sets(self, n):
+        """Return up to n distinct file_key lists from existing vill_dynamics rows,
+        so generated mood-dynamic records can reuse real images (distinct per record)."""
+        rows = self._db.query(
+            "SELECT img_url FROM vill_dynamics "
+            "WHERE img_url IS NOT NULL AND img_url != '' ORDER BY id DESC LIMIT 50")
+        seen = set()
+        out = []
+        for r in rows:
+            u = r["img_url"]
+            if not u or u in seen:
+                continue
+            seen.add(u)
+            keys = [k for k in u.split(",") if k]
+            if keys:
+                out.append(keys)
+            if len(out) >= n:
+                break
+        return out
 
     def _resolve_specialty_categories(self, records):
         """Set category_id on each goods record from its LLM-returned sub-category

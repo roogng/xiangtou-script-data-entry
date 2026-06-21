@@ -21,8 +21,18 @@ _TEMPLATES = [
 ]
 
 
-def generate(village_name: str, n: int = 2):
-    """Return n distinct mood-dynamic Records for the village."""
+def generate(village_name: str, n: int = 2, image_sets=None):
+    """Return n distinct mood-dynamic Records for the village.
+
+    image_sets: optional list of file_key lists, one per record, sourced from
+    existing vill_dynamics rows so the generated records get distinct images
+    without reusing the same fallback image.
+    """
     name = village_name or "乡村"
     picks = random.sample(_TEMPLATES, min(n, len(_TEMPLATES)))
-    return [Record(content=t.format(v=name), images=[]) for t in picks]
+    image_sets = image_sets or []
+    recs = []
+    for i, t in enumerate(picks):
+        keys = image_sets[i] if i < len(image_sets) else []
+        recs.append(Record(content=t.format(v=name), images=[], image_keys=keys))
+    return recs

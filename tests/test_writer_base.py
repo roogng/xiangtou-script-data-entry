@@ -343,3 +343,25 @@ def test_room_transform_sets_approve_time():
 
 class _DummyPrice:
     def __init__(self, p): self.price = p
+
+
+def test_news_uses_pre_resolved_image_keys_without_resolve():
+    # mood-dynamic records carry pre-resolved file_keys (from vill_dynamics);
+    # the writer must use them directly and NOT call the resolver (which would
+    # upload a duplicate Pixabay image).
+    from writers.tables import TABLE_CONFIGS
+    db = MagicMock(); db.execute.return_value = 1
+    calls = {"n": 0}
+    def resolver(refs, keyword=None, table=None, column=None):
+        calls["n"] += 1
+        return ["public/common/should-not-be-used.jpg"]
+    cfg = TABLE_CONFIGS["news"]
+    w = BaseWriter(db, cfg, resolver, village={"id": 1, "village_name": "V"}, defaults={})
+    rec = Record(content="心情", image_keys=["public/common/a.jpg", "public/common/b.jpg"])
+    w.write([rec])
+    assert calls["n"] == 0  # resolver never called — keys used directly
+    sql, args = db.execute.call_args.args
+    inside = sql.split("(", 1)[1].split(")", 1)[0]
+    adict = dict(zip([c.strip() for c in inside.split(",")], args))
+    assert adict["img_url"] == "public/common/a.jpg,public/common/b.jpg"
+    assert adict["cover"] == "public/common/a.jpg"

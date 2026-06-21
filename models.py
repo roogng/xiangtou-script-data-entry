@@ -60,6 +60,7 @@ class Record:
     lng: Optional[float] = None
     lat: Optional[float] = None
     images: List[ImageRef] = field(default_factory=list)
+    image_keys: List[str] = field(default_factory=list)  # pre-resolved file_keys (skip upload/resolve)
     rooms: List[Room] = field(default_factory=list)
     dishes: List[Dish] = field(default_factory=list)
     days: List[Day] = field(default_factory=list)

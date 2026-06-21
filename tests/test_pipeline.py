@@ -125,7 +125,7 @@ def test_pipeline_falls_back_to_search_when_no_images():
     pipe = Pipeline(db, kimi, uploader, file_repo, defaults={},
                     category_repo=MagicMock(), goods_category_fallback=0,
                     image_searcher=searcher)
-    with patch("mood_dynamics.generate", return_value=[]):
+    with patch.object(Pipeline, "_fill_news"):
         pipe.run(village, "q")
     searcher.search.assert_called_once_with("景区 s")
     # the searched image went through upload + t_file insert
@@ -153,7 +153,7 @@ def test_pipeline_falls_back_to_search_when_all_uploads_fail():
     pipe = Pipeline(db, kimi, uploader, file_repo=MagicMock(), defaults={},
                     category_repo=MagicMock(), goods_category_fallback=0,
                     image_searcher=searcher)
-    with patch("mood_dynamics.generate", return_value=[]):
+    with patch.object(Pipeline, "_fill_news"):
         pipe.run(village, "q")
     searcher.search.assert_called_once_with("景区 s")
     sql, args = db.execute.call_args.args
@@ -182,7 +182,8 @@ def test_pipeline_falls_back_to_existing_db_image_when_search_empty():
     db.query.return_value = [{"v": "public/common/existing.jpg,public/common/second.jpg"}]
     pipe = Pipeline(db, kimi, uploader, file_repo=MagicMock(), defaults={},
                     category_repo=MagicMock(), goods_category_fallback=0)  # no searcher
-    pipe.run(_full_village(), "q")
+    with patch.object(Pipeline, "_fill_news"):
+        pipe.run(_full_village(), "q")
     uploader.upload_url.assert_not_called()           # no Kimi image, no web search
     qsql = db.query.call_args.args[0]
     assert "vill_attraction" in qsql and "cover_img" in qsql
@@ -202,7 +203,7 @@ def test_pipeline_sages_no_image_fallback():
     pipe = Pipeline(db, kimi, uploader, file_repo=MagicMock(), defaults={},
                     category_repo=MagicMock(), goods_category_fallback=0,
                     image_searcher=searcher)
-    with patch("mood_dynamics.generate", return_value=[]):
+    with patch.object(Pipeline, "_fill_news"):
         count, _ = pipe.run({"id": 1, "village_name": "V", "lng": 1.0, "lat": 2.0}, "q")
     assert count == 1
     searcher.search.assert_not_called()
@@ -277,3 +278,32 @@ def test_pipeline_fills_two_rooms_when_minsu_has_none():
     room_sqls = [c.args[0] for c in db.execute.call_args_list
                  if "vill_homestay_room" in c.args[0] and c.args[0].startswith("INSERT")]
     assert len(room_sqls) == 2
+
+
+def test_pipeline_mood_records_get_distinct_db_images():
+    # No news -> 2 mood records generated, each reusing a DISTINCT existing
+    # image from vill_dynamics (no upload, no duplicate).
+    raw = json.dumps({}, ensure_ascii=False)
+    kimi = MagicMock(); kimi.ask.return_value = raw
+    uploader = MagicMock()
+    db = MagicMock(); db.execute.return_value = 1
+    db.query.return_value = [
+        {"img_url": "public/common/a.jpg,public/common/b.jpg"},
+        {"img_url": "public/common/c.jpg"},
+    ]
+    village = {"id": 1, "village_name": "V", "lng": 1.0, "lat": 2.0}
+    pipe = Pipeline(db, kimi, uploader, file_repo=MagicMock(), defaults={},
+                    category_repo=MagicMock(), goods_category_fallback=0)
+    pipe.run(village, "q")
+    uploader.upload_url.assert_not_called()  # images came from DB, no upload
+    dyn = [(c.args[0], c.args[1]) for c in db.execute.call_args_list
+           if "vill_dynamics" in c.args[0] and c.args[0].startswith("INSERT")]
+    assert len(dyn) == 2
+    img_urls = []
+    for sql, args in dyn:
+        inside = sql.split("(", 1)[1].split(")", 1)[0]
+        adict = dict(zip([c.strip() for c in inside.split(",")], args))
+        img_urls.append(adict["img_url"])
+    assert len(set(img_urls)) == 2  # the two records have distinct images
+    assert "public/common/a.jpg,public/common/b.jpg" in img_urls
+    assert "public/common/c.jpg" in img_urls
