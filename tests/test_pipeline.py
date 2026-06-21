@@ -20,7 +20,7 @@ def test_pipeline_writes_all_categories_and_commits():
     kimi = MagicMock(); kimi.ask.return_value = raw
     uploader = MagicMock()
     uploader.upload_url.side_effect = lambda url: ("public/common/" + url[-1] + ".jpg", 123)
-    db = MagicMock(); db.execute.return_value = 1
+    db = MagicMock(); db.execute.return_value = 1; db.query.return_value = []
     category_repo = MagicMock(); category_repo.get.return_value = 376  # 炒货
     village = {"id": 1, "village_name": "V", "province_name": "P", "city_name": "C",
                "area_name": "A", "street_name": "S", "address": "addr", "lng": 119.0, "lat": 29.0,
@@ -50,7 +50,7 @@ def test_pipeline_overwrite_deletes_existing_before_writes():
                                    "lng": 1.0, "lat": 2.0}]}, ensure_ascii=False)
     kimi = MagicMock(); kimi.ask.return_value = raw
     uploader = MagicMock(); uploader.upload_url.return_value = ("", 0)
-    db = MagicMock(); db.execute.return_value = 1
+    db = MagicMock(); db.execute.return_value = 1; db.query.return_value = []
     village = {"id": 5, "village_name": "V", "province_name": "P", "city_name": "C",
                "area_name": "A", "street_name": "S", "address": "x", "lng": 1.0, "lat": 2.0,
                "province_id": 1, "city_id": 2, "area_id": 3, "street_id": 4}
@@ -158,3 +158,52 @@ def test_pipeline_falls_back_to_search_when_all_uploads_fail():
     inside = sql.split("(", 1)[1].split(")", 1)[0]
     adict = dict(zip([c.strip() for c in inside.split(",")], args))
     assert adict["cover_img"] == "public/common/found.jpg"
+
+
+def _full_village():
+    return {"id": 1, "village_name": "V", "province_name": "P", "city_name": "C",
+            "area_name": "A", "street_name": "S", "address": "x", "lng": 1.0, "lat": 2.0,
+            "province_id": 1, "city_id": 2, "area_id": 3, "street_id": 4}
+
+
+def _insert_cols(sql):
+    inside = sql.split("(", 1)[1].split(")", 1)[0]
+    return [c.strip() for c in inside.split(",")]
+
+
+def test_pipeline_falls_back_to_existing_db_image_when_search_empty():
+    # No searcher, no Kimi image -> reuse an existing image value from the same
+    # table/column (random pick of recent non-empty rows).
+    kimi = MagicMock(); kimi.ask.return_value = _scenic_raw([])
+    uploader = MagicMock()
+    db = MagicMock(); db.execute.return_value = 1
+    db.query.return_value = [{"v": "public/common/existing.jpg,public/common/second.jpg"}]
+    pipe = Pipeline(db, kimi, uploader, file_repo=MagicMock(), defaults={},
+                    category_repo=MagicMock(), goods_category_fallback=0)  # no searcher
+    pipe.run(_full_village(), "q")
+    uploader.upload_url.assert_not_called()           # no Kimi image, no web search
+    qsql = db.query.call_args.args[0]
+    assert "vill_attraction" in qsql and "cover_img" in qsql
+    sql, args = db.execute.call_args.args
+    adict = dict(zip(_insert_cols(sql), args))
+    assert adict["cover_img"] == "public/common/existing.jpg,public/common/second.jpg"
+
+
+def test_pipeline_sages_no_image_fallback():
+    # sages has fallback_images=False: no web search, no DB query, image left empty.
+    raw = json.dumps({"sages": [{"type": "xiangxian", "name": "李", "intro": "i",
+                                 "images": []}]}, ensure_ascii=False)
+    kimi = MagicMock(); kimi.ask.return_value = raw
+    uploader = MagicMock()
+    searcher = MagicMock()  # present, but must NOT be called for sages
+    db = MagicMock(); db.execute.return_value = 1
+    pipe = Pipeline(db, kimi, uploader, file_repo=MagicMock(), defaults={},
+                    category_repo=MagicMock(), goods_category_fallback=0,
+                    image_searcher=searcher)
+    count, _ = pipe.run({"id": 1, "village_name": "V", "lng": 1.0, "lat": 2.0}, "q")
+    assert count == 1
+    searcher.search.assert_not_called()
+    db.query.assert_not_called()
+    sql, args = db.execute.call_args.args
+    cols = _insert_cols(sql)
+    assert "img_url" not in cols and "avatar" not in cols

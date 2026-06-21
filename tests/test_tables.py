@@ -63,3 +63,9 @@ def test_specialty_has_goods_defaults():
     assert "category_id" not in ed  # moved to field_map (per-record, from Kimi via t_category)
     assert ed["shop_id"] == 2
     assert "category_id" in TABLE_CONFIGS["specialty"].field_map.values()
+
+
+def test_sages_disables_image_fallback():
+    assert TABLE_CONFIGS["sages"].fallback_images is False
+    assert TABLE_CONFIGS["specialty"].fallback_images is True
+    assert TABLE_CONFIGS["minsu"].fallback_images is True

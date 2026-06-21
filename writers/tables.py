@@ -62,6 +62,7 @@ TABLE_CONFIGS = {
         image_first_fields={"images": "avatar"},
         derived_fields={"context_html": _wrap_p("intro")},
         keyword_label="人物", keyword_name_attr="head_name",
+        fallback_images=False,   # don't fabricate a portrait for a real person
     ),
     "minsu": TableConfig(
         table="vill_homestay", mode="insert", gps=GpsMode.POINT,

@@ -1,4 +1,5 @@
 # pipeline.py
+import random
 from writers.base import BaseWriter
 from writers.tables import TABLE_CONFIGS
 from parser import parse
@@ -44,8 +45,9 @@ class Pipeline:
 
         cache = {}
         search_cache = {}  # keyword -> file_key (or "" if search/upload failed)
+        db_cache = {}      # "table.column" -> [existing comma-joined image values]
 
-        def resolve(refs, keyword=None):
+        def resolve(refs, keyword=None, table=None, column=None):
             keys = []
             for ref in refs:
                 if not ref.url:
@@ -64,27 +66,43 @@ class Pipeline:
                                        file_size=size, file_type="jpg")
                 cache[ref.url] = file_key
                 keys.append(file_key)
-            # Fallback: no usable image (Kimi gave none, or all uploads failed).
+            # Fallback 1: no usable image (Kimi gave none, or all uploads failed).
             # Search the web by keyword and upload the first hit.
             if not keys and keyword and self._searcher is not None:
                 if keyword in search_cache:
-                    return [search_cache[keyword]] if search_cache[keyword] else []
-                url = self._searcher.search(keyword)
-                if not url:
-                    search_cache[keyword] = ""
-                    print(f"[warn] image search found nothing: {keyword}")
-                    return []
-                file_key, size = self._uploader.upload_url(url)
-                if not file_key:
-                    search_cache[keyword] = ""
-                    print(f"[warn] searched image upload failed: {url}")
-                    return []
-                self._file_repo.insert(file_key=file_key,
-                                       file_name=url.split("/")[-1] or "image",
-                                       file_size=size, file_type="jpg")
-                cache[url] = file_key
-                search_cache[keyword] = file_key
-                return [file_key]
+                    if search_cache[keyword]:
+                        keys = [search_cache[keyword]]
+                else:
+                    url = self._searcher.search(keyword)
+                    if not url:
+                        search_cache[keyword] = ""
+                        print(f"[warn] image search found nothing: {keyword}")
+                    else:
+                        file_key, size = self._uploader.upload_url(url)
+                        if not file_key:
+                            search_cache[keyword] = ""
+                            print(f"[warn] searched image upload failed: {url}")
+                        else:
+                            self._file_repo.insert(file_key=file_key,
+                                                   file_name=url.split("/")[-1] or "image",
+                                                   file_size=size, file_type="jpg")
+                            cache[url] = file_key
+                            search_cache[keyword] = file_key
+                            keys = [file_key]
+            # Fallback 2: web search also empty -> reuse an existing image value
+            # from the same table/column (random pick of recent non-empty rows).
+            if not keys and table and column:
+                ck = f"{table}.{column}"
+                vals = db_cache.get(ck)
+                if vals is None:
+                    rows = self._db.query(
+                        f"SELECT {column} AS v FROM {table} "
+                        f"WHERE {column} IS NOT NULL AND {column} != '' "
+                        f"ORDER BY id DESC LIMIT 50")
+                    vals = [r["v"] for r in rows] if rows else []
+                    db_cache[ck] = vals
+                if vals:
+                    keys = (random.choice(vals) or "").split(",")
             return keys
 
         vid = village["id"]

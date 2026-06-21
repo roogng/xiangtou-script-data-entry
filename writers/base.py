@@ -60,9 +60,10 @@ class TableConfig:
     derived_fields: Dict[str, Callable[["Record"], object]] = field(default_factory=dict)  # column -> fn(record)
     keyword_label: str = ""             # category word prepended to fallback search keyword
     keyword_name_attr: str = ""         # record attr holding the name (empty -> village name)
+    fallback_images: bool = True        # False -> leave image empty when Kimi gives none (e.g. sages)
 
 
-ImageResolver = Callable[[List[ImageRef], Optional[str]], List[str]]
+ImageResolver = Callable[[List[ImageRef], Optional[str], Optional[str], Optional[str]], List[str]]
 
 
 class BaseWriter:
@@ -77,8 +78,11 @@ class BaseWriter:
     def write(self, records: List[Record]) -> int:
         count = 0
         for rec in records:
-            if self._cfg.skip_if_no_images and not self._resolve(rec.images or [], self._keyword(rec)):
-                continue  # NOT NULL image columns can't be satisfied
+            if self._cfg.skip_if_no_images:
+                col = self._first_image_col()
+                if col is None or not self._resolve(rec.images or [], self._keyword(rec),
+                                                    self._fb_table(), col):
+                    continue  # NOT NULL image columns can't be satisfied
             if self._cfg.gps == GpsMode.POINT:
                 pt = resolve_point(rec.lng, rec.lat,
                                    self._village.get("lng"), self._village.get("lat"))
@@ -93,9 +97,23 @@ class BaseWriter:
             count += 1
         return count
 
+    def _fb_table(self):
+        """Table name to pass for DB-image fallback, or None when disabled."""
+        return self._cfg.table if self._cfg.fallback_images else None
+
+    def _first_image_col(self):
+        for col in self._cfg.image_fields.values():
+            return col
+        for col in self._cfg.image_first_fields.values():
+            return col
+        return None
+
     def _keyword(self, rec) -> str:
-        """Fallback search keyword: '{label} {name}'. Name comes from the
-        configured attr, or the village name when the record has no name."""
+        """Fallback search keyword: '{label} {name}', or None when fallback is
+        disabled. Name comes from the configured attr, or the village name when
+        the record has no name."""
+        if not self._cfg.fallback_images:
+            return None
         name = ""
         if self._cfg.keyword_name_attr:
             name = getattr(rec, self._cfg.keyword_name_attr, "") or ""
@@ -135,12 +153,12 @@ class BaseWriter:
                 row[col] = val
         for attr, col in self._cfg.image_fields.items():
             refs = getattr(rec, attr, None) or []
-            keys = self._resolve(refs, self._keyword(rec))
+            keys = self._resolve(refs, self._keyword(rec), self._fb_table(), col)
             if keys:
                 row[col] = ",".join(keys)
         for attr, col in self._cfg.image_first_fields.items():
             refs = getattr(rec, attr, None) or []
-            keys = self._resolve(refs, self._keyword(rec))
+            keys = self._resolve(refs, self._keyword(rec), self._fb_table(), col)
             if keys:
                 row[col] = keys[0]
         self._apply_gps(rec, row)
@@ -213,7 +231,7 @@ class BaseWriter:
                 row[col] = val
         for attr, col in sub.image_fields.items():
             refs = getattr(item, attr, None) or []
-            keys = self._resolve(refs, self._sub_keyword(sub, item))
+            keys = self._resolve(refs, self._sub_keyword(sub, item), sub.table, col)
             if keys:
                 row[col] = ",".join(keys)
         if sub.transform is not None:
