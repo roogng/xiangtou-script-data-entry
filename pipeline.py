@@ -4,6 +4,7 @@ from writers.base import BaseWriter
 from writers.tables import TABLE_CONFIGS
 from parser import parse
 import mood_dynamics
+import homestay_rooms
 
 # Overwrite cleanup. Child tables lacking village_id are deleted via subquery on
 # their parent's id. Order is child-first. All run inside the pipeline transaction
@@ -60,6 +61,12 @@ class Pipeline:
         # so the village always has some "心情动态" content.
         if not data.news:
             data.news = mood_dynamics.generate(village.get("village_name", ""), 2)
+
+        # If a homestay has no rooms (vill_homestay_room), fill 2 random rooms so
+        # every homestay has some room data.
+        for rec in data.minsu:
+            if not rec.rooms:
+                rec.rooms = homestay_rooms.generate(2)
 
         cache = {}
         search_cache = {}  # keyword -> file_key (or "" if search/upload failed)

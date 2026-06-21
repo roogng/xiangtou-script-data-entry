@@ -256,3 +256,24 @@ def test_pipeline_fills_two_mood_dynamics_when_news_empty():
     dyn_sqls = [c.args[0] for c in db.execute.call_args_list
                 if "vill_dynamics" in c.args[0] and c.args[0].startswith("INSERT")]
     assert len(dyn_sqls) == 2  # two mood-dynamic records written
+
+
+def test_pipeline_fills_two_rooms_when_minsu_has_none():
+    # homestay with no rooms -> pipeline generates 2 random rooms and writes
+    # them to vill_homestay_room (images filled by the searcher fallback).
+    raw = json.dumps({"minsu": [{"title": "t", "intro": "i", "images": [],
+                                  "lng": 1.0, "lat": 2.0, "rooms": []}]},
+                     ensure_ascii=False)
+    kimi = MagicMock(); kimi.ask.return_value = raw
+    uploader = MagicMock()
+    uploader.upload_url.return_value = ("public/common/r.jpg", 50)
+    searcher = MagicMock(); searcher.search.return_value = "http://x/r.jpg"
+    db = MagicMock(); db.execute.return_value = 1; db.query.return_value = []
+    village = {"id": 1, "village_name": "V", "lng": 1.0, "lat": 2.0}
+    pipe = Pipeline(db, kimi, uploader, file_repo=MagicMock(), defaults={},
+                    category_repo=MagicMock(), goods_category_fallback=0,
+                    image_searcher=searcher)
+    pipe.run(village, "q")
+    room_sqls = [c.args[0] for c in db.execute.call_args_list
+                 if "vill_homestay_room" in c.args[0] and c.args[0].startswith("INSERT")]
+    assert len(room_sqls) == 2
