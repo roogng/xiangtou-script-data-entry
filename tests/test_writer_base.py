@@ -190,3 +190,22 @@ def test_specialty_price_defaults_to_zero_when_missing():
     cols = [c.strip() for c in inside.split(",")]
     adict = dict(zip(cols, args))
     assert adict["price"] == 0
+
+
+def test_basic_info_writes_head_introduction_html_wrapped_in_p():
+    # secretary_intro goes to head_introduction verbatim AND to
+    # head_introduction_html wrapped as <p>...</p>.
+    from writers.tables import TABLE_CONFIGS
+    db = MagicMock()
+    db.execute.return_value = 1
+    def resolver(refs): return []
+    cfg = TABLE_CONFIGS["basic_info"]
+    w = BaseWriter(db, cfg, resolver, village={"id": 1}, defaults={})
+    rec = Record(secretary_intro="书记介绍", village_intro="村介绍", head_name="张三")
+    w.write([rec])
+    sql, args = db.execute.call_args.args
+    set_part = sql.split("SET", 1)[1].split("WHERE", 1)[0]
+    cols = [c.split("=")[0].strip() for c in set_part.split(",")]
+    adict = dict(zip(cols, args[:-1]))  # last arg is the WHERE id
+    assert adict["head_introduction"] == "书记介绍"
+    assert adict["head_introduction_html"] == "<p>书记介绍</p>"

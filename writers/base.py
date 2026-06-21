@@ -54,6 +54,7 @@ class TableConfig:
     address_columns: List[str] = field(default_factory=list)  # village/address cols this table has
     sub_tables: List[SubTableConfig] = field(default_factory=list)
     skip_if_no_images: bool = False    # e.g. dynamics cover/img_url NOT NULL
+    derived_fields: Dict[str, Callable[["Record"], object]] = field(default_factory=dict)  # column -> fn(record)
 
 
 ImageResolver = Callable[[List[ImageRef]], List[str]]
@@ -104,6 +105,10 @@ class BaseWriter:
                     row[col] = self._village[col]
         for attr, col in self._cfg.field_map.items():
             val = getattr(rec, attr, None)
+            if val is not None and val != "":
+                row[col] = val
+        for col, fn in self._cfg.derived_fields.items():
+            val = fn(rec)
             if val is not None and val != "":
                 row[col] = val
         for attr, col in self._cfg.image_fields.items():

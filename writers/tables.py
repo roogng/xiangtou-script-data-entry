@@ -1,6 +1,14 @@
 # writers/tables.py
 from writers.base import TableConfig, SubTableConfig, GpsMode
 
+
+def _html_p(rec):
+    """Wrap secretary_intro in <p>...</p> for head_introduction_html."""
+    intro = getattr(rec, "secretary_intro", None)
+    if not intro:
+        return None
+    return f"<p>{intro}</p>"
+
 # uniform column groups reused across tables
 _U_COMMON = ["create_user_id", "update_user_id", "approve_status",
              "approve_id", "online", "deleted_flag"]
@@ -21,6 +29,7 @@ TABLE_CONFIGS = {
         field_map={"secretary_intro": "head_introduction", "contact_phone": "contact_phone",
                    "village_intro": "introduce", "head_name": "head_name"},
         image_fields={"images": "entire_cover_img"},
+        derived_fields={"head_introduction_html": _html_p},
     ),
     "sages": TableConfig(
         table="vill_village_sages", mode="insert", gps=GpsMode.NONE,
